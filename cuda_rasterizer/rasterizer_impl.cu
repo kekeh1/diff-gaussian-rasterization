@@ -75,7 +75,9 @@ __global__ void duplicateWithKeys(
 	uint64_t* gaussian_keys_unsorted,
 	uint32_t* gaussian_values_unsorted,
 	int* radii,
-	dim3 grid)
+	dim3 grid,
+	//Add Change New parameters
+	int* gaussian_count_per_tile)
 {
 	auto idx = cg::this_grid().thread_rank();
 	if (idx >= P)
@@ -105,6 +107,9 @@ __global__ void duplicateWithKeys(
 				gaussian_keys_unsorted[off] = key;
 				gaussian_values_unsorted[off] = idx;
 				off++;
+				//Add change
+				int tileIndex = y * grid.x + x;
+            			atomicAdd(&gaussian_count_per_tile[tileIndex], 1);
 			}
 		}
 	}
@@ -175,6 +180,7 @@ CudaRasterizer::ImageState CudaRasterizer::ImageState::fromChunk(char*& chunk, s
 	obtain(chunk, img.accum_alpha, N, 128);
 	obtain(chunk, img.n_contrib, N, 128);
 	obtain(chunk, img.ranges, N, 128);
+
 	return img;
 }
 
