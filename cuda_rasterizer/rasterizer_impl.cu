@@ -75,9 +75,7 @@ __global__ void duplicateWithKeys(
 	uint64_t* gaussian_keys_unsorted,
 	uint32_t* gaussian_values_unsorted,
 	int* radii,
-	dim3 grid,
-	//Add Change New parameters
-	int* gaussian_count_per_tile)
+	dim3 grid)
 {
 	auto idx = cg::this_grid().thread_rank();
 	if (idx >= P)
@@ -109,8 +107,7 @@ __global__ void duplicateWithKeys(
 				off++;
 				//Add change
 				int tileIndex = y * grid.x + x; 
-				
-				atomicAdd(&gaussian_count_per_tile[tileIndex], 1);
+				printf("tileIndex: %d, count: %d\n", tileIndex);
 
 			}
 		}
