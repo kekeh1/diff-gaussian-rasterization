@@ -108,8 +108,10 @@ __global__ void duplicateWithKeys(
 				gaussian_values_unsorted[off] = idx;
 				off++;
 				//Add change
-				int tileIndex = y * grid.x + x;
-            			atomicAdd(&gaussian_count_per_tile[tileIndex], 1);
+				int tileIndex = y * grid.x + x; 
+				
+				atomicAdd(&gaussian_count_per_tile[tileIndex], 1);
+
 			}
 		}
 	}
