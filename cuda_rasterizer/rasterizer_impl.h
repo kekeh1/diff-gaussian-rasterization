@@ -48,9 +48,6 @@ namespace CudaRasterizer
 		uint2* ranges;
 		uint32_t* n_contrib;
 		float* accum_alpha;
-		//Add change
-		int* gaussian_count_per_tile; // New member
-
 
 		static ImageState fromChunk(char*& chunk, size_t N);
 	};
