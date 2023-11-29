@@ -100,15 +100,20 @@ __global__ void duplicateWithKeys(
 			for (int x = rect_min.x; x < rect_max.x; x++)
 			{
 				uint64_t key = y * grid.x + x;
-				key <<= 32;
-				key |= *((uint32_t*)&depths[idx]);
-				gaussian_keys_unsorted[off] = key;
-				gaussian_values_unsorted[off] = idx;
-				off++;
+				// key <<= 32;
+				// key |= *((uint32_t*)&depths[idx]);
+				// gaussian_keys_unsorted[off] = key;
+				// gaussian_values_unsorted[off] = idx;
+				// off++;
+				// Check if the tile has not exceeded the maximum Gaussians limit
 				//Add change
-				int tileIndex = y * grid.x + x; 
-				printf("tileIndex: %d, count: %d\n", tileIndex);
-
+                if (atomicAdd(&tileGaussianCount[key], 1) < MAX_GAUSSIANS_PER_TILE) {
+                    key <<= 32;
+                    key |= *((uint32_t*)&depths[idx]);
+                    gaussian_keys_unsorted[off] = key;
+                    gaussian_values_unsorted[off] = idx;
+                    off++;
+                }
 			}
 		}
 	}
@@ -119,26 +124,47 @@ __global__ void duplicateWithKeys(
 // Run once per instanced (duplicated) Gaussian ID.
 __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges)
 {
-	auto idx = cg::this_grid().thread_rank();
-	if (idx >= L)
-		return;
 
-	// Read tile ID from key. Update start/end of tile range if at limit.
-	uint64_t key = point_list_keys[idx];
-	uint32_t currtile = key >> 32;
-	if (idx == 0)
-		ranges[currtile].x = 0;
-	else
-	{
-		uint32_t prevtile = point_list_keys[idx - 1] >> 32;
-		if (currtile != prevtile)
-		{
-			ranges[prevtile].y = idx;
-			ranges[currtile].x = idx;
-		}
-	}
-	if (idx == L - 1)
-		ranges[currtile].y = L;
+	
+	auto idx = cg::this_grid().thread_rank();
+    if (idx >= L)
+        return;
+
+    // Read tile ID from key. Update start/end of tile range if at limit.
+    uint64_t key = point_list_keys[idx];
+    uint32_t currtile = key >> 32;
+    if (idx == 0)
+        ranges[currtile].x = 0;
+
+    uint32_t prevtile = (idx == 0) ? currtile : (point_list_keys[idx - 1] >> 32);
+    if (currtile != prevtile)
+    {
+        ranges[prevtile].y = idx;
+        ranges[currtile].x = idx;
+    }
+
+    if (idx == L - 1)
+        ranges[currtile].y = L;
+	//Add change
+    // Count Gaussians per tile and print the count for the first thread in each block
+    if (idx % blockDim.x == 0)
+    {
+        int tileStart = ranges[currtile].x;
+        int tileEnd = ranges[currtile].y;
+        int gaussianCount = tileEnd - tileStart;
+        gaussianCounts[currtile] = gaussianCount;
+
+        // Print the count for the first thread in each block
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        int tileStart = ranges[currtile].x;
+        int tileEnd = ranges[currtile].y;
+        int gaussianCount = tileEnd - tileStart;
+        // Assuming gaussianCounts is defined elsewhere and accessible here
+        gaussianCounts[currtile] = gaussianCount;
+        printf("Tile %d contains %d Gaussians.\n", currtile, gaussianCount);
+    }
+    }
 }
 
 // Mark Gaussians as visible/invisible, based on view frustum testing
@@ -179,7 +205,6 @@ CudaRasterizer::ImageState CudaRasterizer::ImageState::fromChunk(char*& chunk, s
 	obtain(chunk, img.accum_alpha, N, 128);
 	obtain(chunk, img.n_contrib, N, 128);
 	obtain(chunk, img.ranges, N, 128);
-
 	return img;
 }
 
@@ -276,9 +301,19 @@ int CudaRasterizer::Rasterizer::forward(
 		geomState.tiles_touched,
 		prefiltered
 	), debug)
+	//Add change 
+	const int MAX_GAUSSIANS_PER_TILE = 1; 
+	int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
+	int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
+	int numTiles = numTilesX * numTilesY;
+
+	// Allocate memory for tileGaussianCount
+	int* tileGaussianCount;
+	cudaMalloc(&tileGaussianCount, numTiles * sizeof(int));
+	cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int));
 
 	// Compute prefix sum over full list of touched tile counts by Gaussians
-	// E.g., [2, 3, 0, 2, 1] -> [2, 5, 5, 7, 8]
+	// E.g., [2, 3, 0, 2, 1] -> [2, 5, 5, 7, 8]ws
 	CHECK_CUDA(cub::DeviceScan::InclusiveSum(geomState.scanning_space, geomState.scan_size, geomState.tiles_touched, geomState.point_offsets, P), debug)
 
 	// Retrieve total number of Gaussian instances to launch and resize aux buffers
@@ -299,7 +334,8 @@ int CudaRasterizer::Rasterizer::forward(
 		binningState.point_list_keys_unsorted,
 		binningState.point_list_unsorted,
 		radii,
-		tile_grid)
+		tile_grid,
+		 tileGaussianCount)
 	CHECK_CUDA(, debug)
 
 	int bit = getHigherMsb(tile_grid.x * tile_grid.y);
@@ -336,7 +372,8 @@ int CudaRasterizer::Rasterizer::forward(
 		imgState.n_contrib,
 		background,
 		out_color), debug)
-
+	//Add change
+	cudaFree(tileGaussianCount);
 	return num_rendered;
 }
 
