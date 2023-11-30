@@ -100,20 +100,20 @@ __global__ void duplicateWithKeys(
 			for (int x = rect_min.x; x < rect_max.x; x++)
 			{
 				uint64_t key = y * grid.x + x;
-				// key <<= 32;
-				// key |= *((uint32_t*)&depths[idx]);
-				// gaussian_keys_unsorted[off] = key;
-				// gaussian_values_unsorted[off] = idx;
-				// off++;
-				// Check if the tile has not exceeded the maximum Gaussians limit
-				//Add change
-				if (atomicAdd(&tileGaussianCount[key], 1) < MAX_GAUSSIANS_PER_TILE) {
-                    key <<= 32;
-                    key |= *((uint32_t*)&depths[idx]);
-                    gaussian_keys_unsorted[off] = key;
-                    gaussian_values_unsorted[off] = idx;
-                    off++;
-                }
+				key <<= 32;
+				key |= *((uint32_t*)&depths[idx]);
+				gaussian_keys_unsorted[off] = key;
+				gaussian_values_unsorted[off] = idx;
+				off++;
+				Check if the tile has not exceeded the maximum Gaussians limit
+				Add change
+				// if (atomicAdd(&tileGaussianCount[key], 1) < MAX_GAUSSIANS_PER_TILE) {
+                //     key <<= 32;
+                //     key |= *((uint32_t*)&depths[idx]);
+                //     gaussian_keys_unsorted[off] = key;
+                //     gaussian_values_unsorted[off] = idx;
+                //     off++;
+                // }
 			}
 		}
 	}
@@ -302,15 +302,15 @@ int CudaRasterizer::Rasterizer::forward(
 		prefiltered
 	), debug)
 	//Add change 
-	const int MAX_GAUSSIANS_PER_TILE = 1; 
-	int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
-	int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
-	int numTiles = numTilesX * numTilesY;
+	// const int MAX_GAUSSIANS_PER_TILE = 1; 
+	// int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
+	// int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
+	// int numTiles = numTilesX * numTilesY;
 
-	// Allocate memory for tileGaussianCount
-	int* tileGaussianCount;
-	cudaMalloc(&tileGaussianCount, numTiles * sizeof(int));
-	cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int));
+	// // Allocate memory for tileGaussianCount
+	// int* tileGaussianCount;
+	// cudaMalloc(&tileGaussianCount, numTiles * sizeof(int));
+	// cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int));
 
 	// Compute prefix sum over full list of touched tile counts by Gaussians
 	// E.g., [2, 3, 0, 2, 1] -> [2, 5, 5, 7, 8]ws
@@ -334,8 +334,7 @@ int CudaRasterizer::Rasterizer::forward(
 		binningState.point_list_keys_unsorted,
 		binningState.point_list_unsorted,
 		radii,
-		tile_grid,
-		tileGaussianCount)
+		tile_grid)
 	CHECK_CUDA(, debug)
 
 	int bit = getHigherMsb(tile_grid.x * tile_grid.y);
@@ -373,7 +372,7 @@ int CudaRasterizer::Rasterizer::forward(
 		background,
 		out_color), debug)
 	//Add change
-	cudaFree(tileGaussianCount);
+	//cudaFree(tileGaussianCount);
 	return num_rendered;
 }
 
