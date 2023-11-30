@@ -171,9 +171,9 @@ class GaussianRasterizationSettings(NamedTuple):
 class GaussianRasterizer(nn.Module):
     def __init__(self, raster_settings):
         super().__init__()
-        print("Inite Gaussian Rasterizer")
+        #print("Inite Gaussian Rasterizer")
         self.raster_settings = raster_settings
-        print("Inite Gaussian Rasterizer")
+        #print("Inite Gaussian Rasterizer")
 
     def markVisible(self, positions):
         # Mark visible points (based on frustum culling for camera) with a boolean 

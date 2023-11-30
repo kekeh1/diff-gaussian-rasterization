@@ -152,34 +152,25 @@ __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* rang
     if (idx >= L)
         return;
 
-    // Read tile ID from key. Update start/end of tile range if at limit.
     uint64_t key = point_list_keys[idx];
     uint32_t currtile = key >> 32;
-    if (idx == 0)
+
+    // Update start/end of tile range if at the limit or tile change
+    if (idx == 0) {
         ranges[currtile].x = 0;
-    else
-    {
+    } else {
         uint32_t prevtile = point_list_keys[idx - 1] >> 32;
-        if (currtile != prevtile)
-        {
+        if (currtile != prevtile) {
             ranges[prevtile].y = idx;
             ranges[currtile].x = idx;
+            // This thread is the first for the current tile, print previous tile's count
+            printf("Tile %u contains %d Gaussians.\n", prevtile, idx - ranges[prevtile].x);
         }
     }
-    if (idx == L - 1)
+    if (idx == L - 1) {
         ranges[currtile].y = L;
-	//changed
-    // Count Gaussians per tile
-    // Note: This is inefficient as each thread does the counting
-    if (idx == 0 || point_list_keys[idx] >> 32 != point_list_keys[idx - 1] >> 32)
-    {
-        int start = idx;
-        int end = idx + 1;
-        while (end < L && (point_list_keys[end] >> 32) == currtile)
-        {
-            end++;
-        }
-        printf("Tile %u contains %d Gaussians.\n", currtile, end - start);
+        // Print the last tile's count
+        printf("Tile %u contains %d Gaussians.\n", currtile, L - ranges[currtile].x);
     }
 }
 
