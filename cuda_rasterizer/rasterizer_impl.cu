@@ -100,7 +100,7 @@ __global__ void duplicateWithKeys(
 		{
 			for (int x = rect_min.x; x < rect_max.x; x++)
 			{
-				// uint64_t key = y * grid.x + x;
+				uint64_t key = y * grid.x + x;
 				// key <<= 32;
 				// key |= *((uint32_t*)&depths[idx]);
 				// gaussian_keys_unsorted[off] = key;
@@ -108,7 +108,7 @@ __global__ void duplicateWithKeys(
 				// off++;
 				//Check if the tile has not exceeded the maximum Gaussians limit
 				//Add change
-				if (atomicAdd(&tileGaussianCount[key], 1) < MAX_GAUSSIANS_PER_TILE) {
+				if (atomicAdd(&tileGaussianCount[key], 1) < 2) {
                     key <<= 32;
                     key |= *((uint32_t*)&depths[idx]);
                     gaussian_keys_unsorted[off] = key;
@@ -266,7 +266,7 @@ int CudaRasterizer::Rasterizer::forward(
 	bool debug)
 {
 	//changed
-	const int MAX_GAUSSIANS_PER_TILE = 2;
+	#const int MAX_GAUSSIANS_PER_TILE = 2;
 	int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
 	int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
 	int numTiles = numTilesX * numTilesY;
@@ -361,7 +361,8 @@ int CudaRasterizer::Rasterizer::forward(
 		binningState.point_list_keys_unsorted,
 		binningState.point_list_unsorted,
 		radii,
-		tile_grid)
+		tile_grid,
+		tileGaussianCount)
 	CHECK_CUDA(, debug)
 
 	int bit = getHigherMsb(tile_grid.x * tile_grid.y);
