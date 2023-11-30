@@ -266,7 +266,7 @@ int CudaRasterizer::Rasterizer::forward(
 	bool debug)
 {
 	//changed
-	#const int MAX_GAUSSIANS_PER_TILE = 2;
+	//const int MAX_GAUSSIANS_PER_TILE = 2;
 	int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
 	int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
 	int numTiles = numTilesX * numTilesY;
