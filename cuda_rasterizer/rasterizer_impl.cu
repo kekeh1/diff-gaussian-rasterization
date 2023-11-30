@@ -75,7 +75,8 @@ __global__ void duplicateWithKeys(
 	uint64_t* gaussian_keys_unsorted,
 	uint32_t* gaussian_values_unsorted,
 	int* radii,
-	dim3 grid)
+	dim3 grid,
+    int* tileGaussianCount)
 {
 	auto idx = cg::this_grid().thread_rank();
 	if (idx >= P)
@@ -99,21 +100,21 @@ __global__ void duplicateWithKeys(
 		{
 			for (int x = rect_min.x; x < rect_max.x; x++)
 			{
-				uint64_t key = y * grid.x + x;
-				key <<= 32;
-				key |= *((uint32_t*)&depths[idx]);
-				gaussian_keys_unsorted[off] = key;
-				gaussian_values_unsorted[off] = idx;
-				off++;
+				// uint64_t key = y * grid.x + x;
+				// key <<= 32;
+				// key |= *((uint32_t*)&depths[idx]);
+				// gaussian_keys_unsorted[off] = key;
+				// gaussian_values_unsorted[off] = idx;
+				// off++;
 				//Check if the tile has not exceeded the maximum Gaussians limit
 				//Add change
-				// if (atomicAdd(&tileGaussianCount[key], 1) < MAX_GAUSSIANS_PER_TILE) {
-                //     key <<= 32;
-                //     key |= *((uint32_t*)&depths[idx]);
-                //     gaussian_keys_unsorted[off] = key;
-                //     gaussian_values_unsorted[off] = idx;
-                //     off++;
-                // }
+				if (atomicAdd(&tileGaussianCount[key], 1) < MAX_GAUSSIANS_PER_TILE) {
+                    key <<= 32;
+                    key |= *((uint32_t*)&depths[idx]);
+                    gaussian_keys_unsorted[off] = key;
+                    gaussian_values_unsorted[off] = idx;
+                    off++;
+                }
 			}
 		}
 	}
@@ -167,7 +168,7 @@ __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* rang
     }
     if (idx == L - 1)
         ranges[currtile].y = L;
-
+	//changed
     // Count Gaussians per tile
     // Note: This is inefficient as each thread does the counting
     if (idx == 0 || point_list_keys[idx] >> 32 != point_list_keys[idx - 1] >> 32)
@@ -264,6 +265,17 @@ int CudaRasterizer::Rasterizer::forward(
 	int* radii,
 	bool debug)
 {
+	//changed
+	const int MAX_GAUSSIANS_PER_TILE = 2;
+	int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
+	int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
+	int numTiles = numTilesX * numTilesY;
+	int* tileGaussianCount;
+	cudaMalloc(&tileGaussianCount, numTiles * sizeof(int));
+	cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int));
+
+
+
 	const float focal_y = height / (2.0f * tan_fovy);
 	const float focal_x = width / (2.0f * tan_fovx);
 
@@ -387,7 +399,7 @@ int CudaRasterizer::Rasterizer::forward(
 		background,
 		out_color), debug)
 	//Add change
-	//cudaFree(tileGaussianCount);
+	cudaFree(tileGaussianCount);
 	return num_rendered;
 }
 
