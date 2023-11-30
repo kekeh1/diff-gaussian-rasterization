@@ -120,59 +120,59 @@ __global__ void duplicateWithKeys(
 	}
 }
 
-// Check keys to see if it is at the start/end of one tile's range in 
-// the full sorted list. If yes, write start/end of this tile. 
-// Run once per instanced (duplicated) Gaussian ID.
-// __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges)
-// {
-// 	auto idx = cg::this_grid().thread_rank();
-// 	if (idx >= L)
-// 		return;
-
-// 	// Read tile ID from key. Update start/end of tile range if at limit.
-// 	uint64_t key = point_list_keys[idx];
-// 	uint32_t currtile = key >> 32;
-// 	if (idx == 0)
-// 		ranges[currtile].x = 0;
-// 	else
-// 	{
-// 		uint32_t prevtile = point_list_keys[idx - 1] >> 32;
-// 		if (currtile != prevtile)
-// 		{
-// 			ranges[prevtile].y = idx;
-// 			ranges[currtile].x = idx;
-// 		}
-// 	}
-// 	if (idx == L - 1)
-// 		ranges[currtile].y = L;
-// }
+Check keys to see if it is at the start/end of one tile's range in 
+the full sorted list. If yes, write start/end of this tile. 
+Run once per instanced (duplicated) Gaussian ID.
 __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges)
 {
-    auto idx = cg::this_grid().thread_rank();
-    if (idx >= L)
-        return;
+	auto idx = cg::this_grid().thread_rank();
+	if (idx >= L)
+		return;
 
-    uint64_t key = point_list_keys[idx];
-    uint32_t currtile = key >> 32;
-
-    // Update start/end of tile range if at the limit or tile change
-    if (idx == 0) {
-        ranges[currtile].x = 0;
-    } else {
-        uint32_t prevtile = point_list_keys[idx - 1] >> 32;
-        if (currtile != prevtile) {
-            ranges[prevtile].y = idx;
-            ranges[currtile].x = idx;
-            // This thread is the first for the current tile, print previous tile's count
-            printf("Tile %u contains %d Gaussians.\n", prevtile, idx - ranges[prevtile].x);
-        }
-    }
-    if (idx == L - 1) {
-        ranges[currtile].y = L;
-        // Print the last tile's count
-        printf("Tile %u contains %d Gaussians.\n", currtile, L - ranges[currtile].x);
-    }
+	// Read tile ID from key. Update start/end of tile range if at limit.
+	uint64_t key = point_list_keys[idx];
+	uint32_t currtile = key >> 32;
+	if (idx == 0)
+		ranges[currtile].x = 0;
+	else
+	{
+		uint32_t prevtile = point_list_keys[idx - 1] >> 32;
+		if (currtile != prevtile)
+		{
+			ranges[prevtile].y = idx;
+			ranges[currtile].x = idx;
+		}
+	}
+	if (idx == L - 1)
+		ranges[currtile].y = L;
 }
+// __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges)
+// {
+//     auto idx = cg::this_grid().thread_rank();
+//     if (idx >= L)
+//         return;
+
+//     uint64_t key = point_list_keys[idx];
+//     uint32_t currtile = key >> 32;
+
+//     // Update start/end of tile range if at the limit or tile change
+//     if (idx == 0) {
+//         ranges[currtile].x = 0;
+//     } else {
+//         uint32_t prevtile = point_list_keys[idx - 1] >> 32;
+//         if (currtile != prevtile) {
+//             ranges[prevtile].y = idx;
+//             ranges[currtile].x = idx;
+//             // This thread is the first for the current tile, print previous tile's count
+//             printf("Tile %u contains %d Gaussians.\n", prevtile, idx - ranges[prevtile].x);
+//         }
+//     }
+//     if (idx == L - 1) {
+//         ranges[currtile].y = L;
+//         // Print the last tile's count
+//         printf("Tile %u contains %d Gaussians.\n", currtile, L - ranges[currtile].x);
+//     }
+// }
 
 // Mark Gaussians as visible/invisible, based on view frustum testing
 void CudaRasterizer::Rasterizer::markVisible(
