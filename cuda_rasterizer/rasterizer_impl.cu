@@ -105,8 +105,8 @@ __global__ void duplicateWithKeys(
 				gaussian_keys_unsorted[off] = key;
 				gaussian_values_unsorted[off] = idx;
 				off++;
-				Check if the tile has not exceeded the maximum Gaussians limit
-				Add change
+				//Check if the tile has not exceeded the maximum Gaussians limit
+				//Add change
 				// if (atomicAdd(&tileGaussianCount[key], 1) < MAX_GAUSSIANS_PER_TILE) {
                 //     key <<= 32;
                 //     key |= *((uint32_t*)&depths[idx]);
@@ -122,11 +122,32 @@ __global__ void duplicateWithKeys(
 // Check keys to see if it is at the start/end of one tile's range in 
 // the full sorted list. If yes, write start/end of this tile. 
 // Run once per instanced (duplicated) Gaussian ID.
+// __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges)
+// {
+// 	auto idx = cg::this_grid().thread_rank();
+// 	if (idx >= L)
+// 		return;
+
+// 	// Read tile ID from key. Update start/end of tile range if at limit.
+// 	uint64_t key = point_list_keys[idx];
+// 	uint32_t currtile = key >> 32;
+// 	if (idx == 0)
+// 		ranges[currtile].x = 0;
+// 	else
+// 	{
+// 		uint32_t prevtile = point_list_keys[idx - 1] >> 32;
+// 		if (currtile != prevtile)
+// 		{
+// 			ranges[prevtile].y = idx;
+// 			ranges[currtile].x = idx;
+// 		}
+// 	}
+// 	if (idx == L - 1)
+// 		ranges[currtile].y = L;
+// }
 __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges)
 {
-
-	
-	auto idx = cg::this_grid().thread_rank();
+    auto idx = cg::this_grid().thread_rank();
     if (idx >= L)
         return;
 
@@ -135,35 +156,29 @@ __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* rang
     uint32_t currtile = key >> 32;
     if (idx == 0)
         ranges[currtile].x = 0;
-
-    uint32_t prevtile = (idx == 0) ? currtile : (point_list_keys[idx - 1] >> 32);
-    if (currtile != prevtile)
+    else
     {
-        ranges[prevtile].y = idx;
-        ranges[currtile].x = idx;
+        uint32_t prevtile = point_list_keys[idx - 1] >> 32;
+        if (currtile != prevtile)
+        {
+            ranges[prevtile].y = idx;
+            ranges[currtile].x = idx;
+        }
     }
-
     if (idx == L - 1)
         ranges[currtile].y = L;
-	//Add change
-    // Count Gaussians per tile and print the count for the first thread in each block
-    if (idx % blockDim.x == 0)
-    {
-        int tileStart = ranges[currtile].x;
-        int tileEnd = ranges[currtile].y;
-        int gaussianCount = tileEnd - tileStart;
-        gaussianCounts[currtile] = gaussianCount;
 
-        // Print the count for the first thread in each block
-    if (threadIdx.x == 0 && blockIdx.x == 0)
+    // Count Gaussians per tile
+    // Note: This is inefficient as each thread does the counting
+    if (idx == 0 || point_list_keys[idx] >> 32 != point_list_keys[idx - 1] >> 32)
     {
-        int tileStart = ranges[currtile].x;
-        int tileEnd = ranges[currtile].y;
-        int gaussianCount = tileEnd - tileStart;
-        // Assuming gaussianCounts is defined elsewhere and accessible here
-        gaussianCounts[currtile] = gaussianCount;
-        printf("Tile %d contains %d Gaussians.\n", currtile, gaussianCount);
-    }
+        int start = idx;
+        int end = idx + 1;
+        while (end < L && (point_list_keys[end] >> 32) == currtile)
+        {
+            end++;
+        }
+        printf("Tile %u contains %d Gaussians.\n", currtile, end - start);
     }
 }
 
