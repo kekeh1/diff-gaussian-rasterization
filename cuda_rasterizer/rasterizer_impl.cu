@@ -391,8 +391,6 @@ int CudaRasterizer::Rasterizer::forward(
 		imgState.n_contrib,
 		background,
 		out_color), debug)
-	//Add change
-	cudaFree(tileGaussianCount);
 	return num_rendered;
 }
 
