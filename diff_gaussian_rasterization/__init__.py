@@ -78,7 +78,7 @@ class _RasterizeGaussians(torch.autograd.Function):
             raster_settings.prefiltered,
             raster_settings.debug
         )
-        print("Ready for cuda")
+        #print("Ready for cuda")
         # Invoke C++/CUDA rasterizer
         if raster_settings.debug:
             cpu_args = cpu_deep_copy_tuple(args) # Copy them before they can be corrupted
@@ -189,7 +189,7 @@ class GaussianRasterizer(nn.Module):
     def forward(self, means3D, means2D, opacities, shs = None, colors_precomp = None, scales = None, rotations = None, cov3D_precomp = None):
         
         raster_settings = self.raster_settings
-        print("raster_settings", raster_settings)
+        #print("raster_settings", raster_settings)
         if (shs is None and colors_precomp is None) or (shs is not None and colors_precomp is not None):
             raise Exception('Please provide excatly one of either SHs or precomputed colors!')
         

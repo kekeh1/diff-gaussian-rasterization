@@ -319,16 +319,7 @@ int CudaRasterizer::Rasterizer::forward(
 		geomState.tiles_touched,
 		prefiltered
 	), debug)
-	//Add change 
-	// const int MAX_GAUSSIANS_PER_TILE = 1; 
-	// int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
-	// int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
-	// int numTiles = numTilesX * numTilesY;
 
-	// // Allocate memory for tileGaussianCount
-	// int* tileGaussianCount;
-	// cudaMalloc(&tileGaussianCount, numTiles * sizeof(int));
-	// cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int));
 
 	// Compute prefix sum over full list of touched tile counts by Gaussians
 	// E.g., [2, 3, 0, 2, 1] -> [2, 5, 5, 7, 8]ws
