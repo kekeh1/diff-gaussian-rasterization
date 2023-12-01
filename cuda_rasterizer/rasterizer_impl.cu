@@ -345,7 +345,7 @@ int CudaRasterizer::Rasterizer::forward(
 	// Define tileGaussianCount as an array of uint32_t
 	uint32_t* tileGaussianCount = nullptr;
 	// Assuming grid_width and grid_height are determined based on your application's requirements
-	const int numTiles = grid_width * grid_height;
+	const int numTiles = tile_grid.x * tile_grid.y;
 	cudaMalloc(&tileGaussianCount, numTiles * sizeof(uint32_t));
 	cudaMemset(tileGaussianCount, 0, numTiles * sizeof(uint32_t));
 
