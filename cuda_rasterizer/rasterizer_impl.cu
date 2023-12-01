@@ -76,7 +76,7 @@ __global__ void duplicateWithKeys(
 	uint32_t* gaussian_values_unsorted,
 	int* radii,
 	dim3 grid,
-    int* tileGaussianCount)
+    uint32_t* tileGaussianCount)
 {
 	auto idx = cg::this_grid().thread_rank();
 	if (idx >= P)
