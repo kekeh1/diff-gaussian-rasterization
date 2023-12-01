@@ -120,6 +120,9 @@ __global__ void duplicateWithKeys(
 	}
 }
 
+
+
+
 // Check keys to see if it is at the start/end of one tile's range in 
 // the full sorted list. If yes, write start/end of this tile. 
 // Run once per instanced (duplicated) Gaussian ID.
@@ -212,6 +215,9 @@ CudaRasterizer::ImageState CudaRasterizer::ImageState::fromChunk(char*& chunk, s
 	obtain(chunk, img.accum_alpha, N, 128);
 	obtain(chunk, img.n_contrib, N, 128);
 	obtain(chunk, img.ranges, N, 128);
+	//changed
+	// Allocate and initialize tileGaussianCount
+    obtain(chunk, img.tileGaussianCount, N, 128); // Assuming N is the number of tiles
 	return img;
 }
 
@@ -256,14 +262,14 @@ int CudaRasterizer::Rasterizer::forward(
 	int* radii,
 	bool debug)
 {
-	//changed
-	//const int MAX_GAUSSIANS_PER_TILE = 2;
-	int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
-	int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
-	int numTiles = numTilesX * numTilesY;
-	int* tileGaussianCount;
-	cudaMalloc(&tileGaussianCount, numTiles * sizeof(int));
-	cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int));
+	// //changed
+	// //const int MAX_GAUSSIANS_PER_TILE = 2;
+	// int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
+	// int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
+	// int numTiles = numTilesX * numTilesY;
+	// int* tileGaussianCount;
+	// cudaMalloc(&tileGaussianCount, numTiles * sizeof(int));
+	// cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int));
 
 
 
@@ -333,6 +339,10 @@ int CudaRasterizer::Rasterizer::forward(
 	char* binning_chunkptr = binningBuffer(binning_chunk_size);
 	BinningState binningState = BinningState::fromChunk(binning_chunkptr, num_rendered);
 
+
+	// Assuming tileGaussianCount is a part of imgState and is an array of uint32_t
+	CHECK_CUDA(cudaMemset(imgState.tileGaussianCount, 0, tile_grid.x * tile_grid.y * sizeof(uint32_t)), debug);
+
 	// For each instance to be rendered, produce adequate [ tile | depth ] key 
 	// and corresponding dublicated Gaussian indices to be sorted
 	duplicateWithKeys << <(P + 255) / 256, 256 >> > (
@@ -343,8 +353,8 @@ int CudaRasterizer::Rasterizer::forward(
 		binningState.point_list_keys_unsorted,
 		binningState.point_list_unsorted,
 		radii,
-		tile_grid,
-		tileGaussianCount)
+		tile_grid, 
+		imgState.tileGaussianCount)
 	CHECK_CUDA(, debug)
 
 	int bit = getHigherMsb(tile_grid.x * tile_grid.y);
