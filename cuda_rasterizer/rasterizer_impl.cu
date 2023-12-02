@@ -75,8 +75,7 @@ __global__ void duplicateWithKeys(
 	uint64_t* gaussian_keys_unsorted,
 	uint32_t* gaussian_values_unsorted,
 	int* radii,
-	dim3 grid,
-    uint32_t* tileGaussianCount)
+	dim3 grid)
 {
 	auto idx = cg::this_grid().thread_rank();
 	if (idx >= P)
@@ -101,81 +100,45 @@ __global__ void duplicateWithKeys(
 			for (int x = rect_min.x; x < rect_max.x; x++)
 			{
 				uint64_t key = y * grid.x + x;
-				// key <<= 32;
-				// key |= *((uint32_t*)&depths[idx]);
-				// gaussian_keys_unsorted[off] = key;
-				// gaussian_values_unsorted[off] = idx;
-				// off++;
-				//Check if the tile has not exceeded the maximum Gaussians limit
-				//Add change
-				if (atomicAdd(&tileGaussianCount[key], 1) < 2) {
-                    key <<= 32;
-                    key |= *((uint32_t*)&depths[idx]);
-                    gaussian_keys_unsorted[off] = key;
-                    gaussian_values_unsorted[off] = idx;
-                    off++;
-                }
+				key <<= 32;
+				key |= *((uint32_t*)&depths[idx]);
+				gaussian_keys_unsorted[off] = key;
+				gaussian_values_unsorted[off] = idx;
+				off++;
 			}
 		}
 	}
 }
 
-
-
-
 // Check keys to see if it is at the start/end of one tile's range in 
 // the full sorted list. If yes, write start/end of this tile. 
 // Run once per instanced (duplicated) Gaussian ID.
-__global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges)
+__global__ void identifyTileRangesAndPrint(int L, uint64_t* point_list_keys, uint2* ranges)
 {
 	auto idx = cg::this_grid().thread_rank();
 	if (idx >= L)
 		return;
 
-	// Read tile ID from key. Update start/end of tile range if at limit.
 	uint64_t key = point_list_keys[idx];
 	uint32_t currtile = key >> 32;
-	if (idx == 0)
+
+	if (idx == 0) {
 		ranges[currtile].x = 0;
-	else
-	{
+	} else {
 		uint32_t prevtile = point_list_keys[idx - 1] >> 32;
-		if (currtile != prevtile)
-		{
+		if (currtile != prevtile) {
 			ranges[prevtile].y = idx;
+			// Print the count for the previous tile
+			printf("Tile %u has %d Gaussians\n", prevtile, idx - ranges[prevtile].x);
 			ranges[currtile].x = idx;
 		}
 	}
-	if (idx == L - 1)
+	if (idx == L - 1) {
 		ranges[currtile].y = L;
+		// Print the count for the last tile
+		printf("Tile %u has %d Gaussians\n", currtile, L - ranges[currtile].x);
+	}
 }
-// __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges)
-// {
-//     auto idx = cg::this_grid().thread_rank();
-//     if (idx >= L)
-//         return;
-
-//     uint64_t key = point_list_keys[idx];
-//     uint32_t currtile = key >> 32;
-
-//     // Update start/end of tile range if at the limit or tile change
-//     if (idx == 0) {
-//         ranges[currtile].x = 0;
-//     } else {
-//         uint32_t prevtile = point_list_keys[idx - 1] >> 32;
-//         if (currtile != prevtile) {
-//             ranges[prevtile].y = idx;
-//             ranges[currtile].x = idx;
-//             // This thread is the first for the current tile, print previous tile's count
-//             printf("Tile %u contains %d Gaussians.\n", prevtile, idx - ranges[prevtile].x);
-//         }
-//     }
-//     if (idx == L - 1) {
-//         ranges[currtile].y = L;
-//         // Print the last tile's count
-//         printf("Tile %u contains %d Gaussians.\n", currtile, L - ranges[currtile].x);
-//     }
-// }
 
 // Mark Gaussians as visible/invisible, based on view frustum testing
 void CudaRasterizer::Rasterizer::markVisible(
@@ -215,9 +178,6 @@ CudaRasterizer::ImageState CudaRasterizer::ImageState::fromChunk(char*& chunk, s
 	obtain(chunk, img.accum_alpha, N, 128);
 	obtain(chunk, img.n_contrib, N, 128);
 	obtain(chunk, img.ranges, N, 128);
-	// //changed
-	// // Allocate and initialize tileGaussianCount
-    // obtain(chunk, img.tileGaussianCount, N, 128); // Assuming N is the number of tiles
 	return img;
 }
 
@@ -228,7 +188,6 @@ CudaRasterizer::BinningState CudaRasterizer::BinningState::fromChunk(char*& chun
 	obtain(chunk, binning.point_list_unsorted, P, 128);
 	obtain(chunk, binning.point_list_keys, P, 128);
 	obtain(chunk, binning.point_list_keys_unsorted, P, 128);
-	
 	cub::DeviceRadixSort::SortPairs(
 		nullptr, binning.sorting_size,
 		binning.point_list_keys_unsorted, binning.point_list_keys,
@@ -263,17 +222,6 @@ int CudaRasterizer::Rasterizer::forward(
 	int* radii,
 	bool debug)
 {
-	// //changed
-	// //const int MAX_GAUSSIANS_PER_TILE = 2;
-	int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
-	int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
-	int numTiles = numTilesX * numTilesY;
-	int* tileGaussianCount;
-	CHECK_CUDA(cudaMalloc(&tileGaussianCount, numTiles * sizeof(int)));
-	CHECK_CUDA(cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int)));
-
-
-
 	const float focal_y = height / (2.0f * tan_fovy);
 	const float focal_x = width / (2.0f * tan_fovx);
 
@@ -327,9 +275,8 @@ int CudaRasterizer::Rasterizer::forward(
 		prefiltered
 	), debug)
 
-
 	// Compute prefix sum over full list of touched tile counts by Gaussians
-	// E.g., [2, 3, 0, 2, 1] -> [2, 5, 5, 7, 8]ws
+	// E.g., [2, 3, 0, 2, 1] -> [2, 5, 5, 7, 8]
 	CHECK_CUDA(cub::DeviceScan::InclusiveSum(geomState.scanning_space, geomState.scan_size, geomState.tiles_touched, geomState.point_offsets, P), debug)
 
 	// Retrieve total number of Gaussian instances to launch and resize aux buffers
@@ -338,18 +285,7 @@ int CudaRasterizer::Rasterizer::forward(
 
 	size_t binning_chunk_size = required<BinningState>(num_rendered);
 	char* binning_chunkptr = binningBuffer(binning_chunk_size);
-	
 	BinningState binningState = BinningState::fromChunk(binning_chunkptr, num_rendered);
-
-
-	// Define tileGaussianCount as an array of uint32_t
-	uint32_t* tileGaussianCount = nullptr;
-	// Assuming grid_width and grid_height are determined based on your application's requirements
-	const int numTiles = tile_grid.x * tile_grid.y;
-	cudaMalloc(&tileGaussianCount, numTiles * sizeof(uint32_t));
-	cudaMemset(tileGaussianCount, 0, numTiles * sizeof(uint32_t));
-
-
 
 	// For each instance to be rendered, produce adequate [ tile | depth ] key 
 	// and corresponding dublicated Gaussian indices to be sorted
@@ -361,8 +297,7 @@ int CudaRasterizer::Rasterizer::forward(
 		binningState.point_list_keys_unsorted,
 		binningState.point_list_unsorted,
 		radii,
-		tile_grid, 
-		tileGaussianCount)
+		tile_grid)
 	CHECK_CUDA(, debug)
 
 	int bit = getHigherMsb(tile_grid.x * tile_grid.y);
@@ -399,6 +334,7 @@ int CudaRasterizer::Rasterizer::forward(
 		imgState.n_contrib,
 		background,
 		out_color), debug)
+
 	return num_rendered;
 }
 
