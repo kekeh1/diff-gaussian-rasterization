@@ -339,6 +339,25 @@ int CudaRasterizer::Rasterizer::forward(
 		background,
 		out_color), debug)
 
+	
+
+	// Synchronize CUDA device to ensure all kernels have finished
+	cudaDeviceSynchronize();
+
+	// Assume `imgState.ranges` holds the start and end indices for each tile's Gaussians
+	// and `tile_grid.x * tile_grid.y` is the total number of tiles
+	uint2* h_ranges = new uint2[tile_grid.x * tile_grid.y];
+	cudaMemcpy(h_ranges, imgState.ranges, tile_grid.x * tile_grid.y * sizeof(uint2), cudaMemcpyDeviceToHost);
+
+	// Calculate and print the number of Gaussians per tile
+	for (int i = 0; i < tile_grid.x * tile_grid.y; ++i) {
+		int numGaussians = h_ranges[i].y - h_ranges[i].x;
+		std::cout << "Tile " << i << " has " << numGaussians << " Gaussians" << std::endl;
+	}
+
+	// Clean up
+	delete[] h_ranges;
+	
 	return num_rendered;
 }
 
