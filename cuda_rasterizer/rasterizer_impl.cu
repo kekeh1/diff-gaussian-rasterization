@@ -127,14 +127,14 @@ __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* rang
 	} else {
 		uint32_t prevtile = point_list_keys[idx - 1] >> 32;
 		if (currtile != prevtile) {
-			ranges[prevtile].y = idx;
+			ranges[prevtile].y = ranges[prevtile].x + 4;
 			// Print the count for the previous tile
 			//printf("Tile %u has %d Gaussians\n", prevtile, idx - ranges[prevtile].x);
 			ranges[currtile].x = idx;
 		}
 	}
 	if (idx == L - 1) {
-		ranges[currtile].y = L;
+		ranges[currtile].y = ranges[prevtile].x + 4;
 		// Print the count for the last tile
 		printf("Tile %u has %d Gaussians\n", currtile, L - ranges[currtile].x);
 	}
