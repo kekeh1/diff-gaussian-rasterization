@@ -131,9 +131,9 @@ __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* rang
 			ranges[prevtile].y = idx;
 			ranges[currtile].x = idx;
 			count = idx - ranges[prevtile].x;
-			if ((count < 100 || count > 1000) && count != 0 ){
-				printf("Tile %u has %d Gaussians\n", prevtile, count);
-			}
+			
+			printf("Tile %u has %d Gaussians\n", prevtile, count);
+
 			
 		}
 	}
