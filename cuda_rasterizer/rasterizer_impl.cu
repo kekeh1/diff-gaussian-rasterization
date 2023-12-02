@@ -215,9 +215,9 @@ CudaRasterizer::ImageState CudaRasterizer::ImageState::fromChunk(char*& chunk, s
 	obtain(chunk, img.accum_alpha, N, 128);
 	obtain(chunk, img.n_contrib, N, 128);
 	obtain(chunk, img.ranges, N, 128);
-	//changed
-	// Allocate and initialize tileGaussianCount
-    obtain(chunk, img.tileGaussianCount, N, 128); // Assuming N is the number of tiles
+	// //changed
+	// // Allocate and initialize tileGaussianCount
+    // obtain(chunk, img.tileGaussianCount, N, 128); // Assuming N is the number of tiles
 	return img;
 }
 
@@ -228,6 +228,7 @@ CudaRasterizer::BinningState CudaRasterizer::BinningState::fromChunk(char*& chun
 	obtain(chunk, binning.point_list_unsorted, P, 128);
 	obtain(chunk, binning.point_list_keys, P, 128);
 	obtain(chunk, binning.point_list_keys_unsorted, P, 128);
+	
 	cub::DeviceRadixSort::SortPairs(
 		nullptr, binning.sorting_size,
 		binning.point_list_keys_unsorted, binning.point_list_keys,
@@ -264,12 +265,12 @@ int CudaRasterizer::Rasterizer::forward(
 {
 	// //changed
 	// //const int MAX_GAUSSIANS_PER_TILE = 2;
-	// int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
-	// int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
-	// int numTiles = numTilesX * numTilesY;
-	// int* tileGaussianCount;
-	// cudaMalloc(&tileGaussianCount, numTiles * sizeof(int));
-	// cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int));
+	int numTilesX = (width + BLOCK_X - 1) / BLOCK_X;
+	int numTilesY = (height + BLOCK_Y - 1) / BLOCK_Y;
+	int numTiles = numTilesX * numTilesY;
+	int* tileGaussianCount;
+	CHECK_CUDA(cudaMalloc(&tileGaussianCount, numTiles * sizeof(int)));
+	CHECK_CUDA(cudaMemset(tileGaussianCount, 0, numTiles * sizeof(int)));
 
 
 
@@ -337,11 +338,18 @@ int CudaRasterizer::Rasterizer::forward(
 
 	size_t binning_chunk_size = required<BinningState>(num_rendered);
 	char* binning_chunkptr = binningBuffer(binning_chunk_size);
+	
 	BinningState binningState = BinningState::fromChunk(binning_chunkptr, num_rendered);
 
 
-	// Assuming tileGaussianCount is a part of imgState and is an array of uint32_t
-	CHECK_CUDA(cudaMemset(imgState.tileGaussianCount, 0, tile_grid.x * tile_grid.y * sizeof(uint32_t)), debug);
+	// Define tileGaussianCount as an array of uint32_t
+	uint32_t* tileGaussianCount = nullptr;
+	// Assuming grid_width and grid_height are determined based on your application's requirements
+	const int numTiles = tile_grid.x * tile_grid.y;
+	cudaMalloc(&tileGaussianCount, numTiles * sizeof(uint32_t));
+	cudaMemset(tileGaussianCount, 0, numTiles * sizeof(uint32_t));
+
+
 
 	// For each instance to be rendered, produce adequate [ tile | depth ] key 
 	// and corresponding dublicated Gaussian indices to be sorted
@@ -354,7 +362,7 @@ int CudaRasterizer::Rasterizer::forward(
 		binningState.point_list_unsorted,
 		radii,
 		tile_grid, 
-		imgState.tileGaussianCount)
+		tileGaussianCount)
 	CHECK_CUDA(, debug)
 
 	int bit = getHigherMsb(tile_grid.x * tile_grid.y);
