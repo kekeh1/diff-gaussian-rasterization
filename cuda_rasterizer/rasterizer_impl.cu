@@ -121,7 +121,7 @@ __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* rang
 
 	uint64_t key = point_list_keys[idx];
 	uint32_t currtile = key >> 32;
-	unit32_t count = 0;
+	uint32_t count = 0;
 
 	if (idx == 0) {
 		ranges[currtile].x = 0;
