@@ -351,11 +351,23 @@ int CudaRasterizer::Rasterizer::forward(
 	uint2* h_ranges = new uint2[tile_grid.x * tile_grid.y];
 	cudaMemcpy(h_ranges, imgState.ranges, tile_grid.x * tile_grid.y * sizeof(uint2), cudaMemcpyDeviceToHost);
 
-	// Calculate and print the number of Gaussians per tile
+	// Open an output file stream
+	std::ofstream outFile("output.txt");
+
+	// Check if the file is opened successfully
+	if (!outFile.is_open()) {
+		std::cerr << "Failed to open output.txt for writing." << std::endl;
+		return; // or handle the error appropriately
+	}
+
+	// Calculate and write the number of Gaussians per tile to the file
 	for (int i = 0; i < tile_grid.x * tile_grid.y; ++i) {
 		int numGaussians = h_ranges[i].y - h_ranges[i].x;
-		std::cout << "Tile " << i << " has " << numGaussians << " Gaussians" << std::endl;
+		outFile << "Tile " << i << " has " << numGaussians << " Gaussians" << std::endl;
 	}
+
+	// Close the file stream
+	outFile.close();
 
 	// Clean up
 	delete[] h_ranges;
