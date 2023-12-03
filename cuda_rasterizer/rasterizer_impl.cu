@@ -370,7 +370,7 @@ int CudaRasterizer::Rasterizer::forward(
     	// Determine the pixel position of the tile
     	int startX = col * BLOCK_X;
     	int startY = row * BLOCK_Y;
-	printf("width and height and block, %d, %d, %d, %d", width, height, BLOCK_X, BLOCK_Y)
+	printf("width and height and block, %d, %d, %d, %d", width, height, BLOCK_X, BLOCK_Y);
     outFile << "Tile " << i << " (Position: [" << startX << ", " << startY << "]) has " << numGaussians << " Gaussians" << std::endl;
 
 	}
