@@ -113,12 +113,12 @@ __global__ void duplicateWithKeys(
 // Check keys to see if it is at the start/end of one tile's range in 
 // the full sorted list. If yes, write start/end of this tile. 
 // Run once per instanced (duplicated) Gaussian ID.
-__global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges)
+__global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* ranges, int height , int width )
 {
 	auto idx = cg::this_grid().thread_rank();
 	if (idx >= L)
 		return;
-
+	int numTilesX = (width + 16 - 1) / 16;
 	uint64_t key = point_list_keys[idx];
 	uint32_t currtile = key >> 32;
 	uint32_t count = 0;
@@ -303,7 +303,9 @@ int CudaRasterizer::Rasterizer::forward(
 		binningState.point_list_keys_unsorted,
 		binningState.point_list_unsorted,
 		radii,
-		tile_grid)
+		tile_grid, 
+		height, 
+		width)
 	CHECK_CUDA(, debug)
 
 	int bit = getHigherMsb(tile_grid.x * tile_grid.y);
