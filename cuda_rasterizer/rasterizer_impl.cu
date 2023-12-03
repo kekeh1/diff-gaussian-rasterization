@@ -357,7 +357,7 @@ int CudaRasterizer::Rasterizer::forward(
 	// Check if the file is opened successfully
 	if (!outFile.is_open()) {
 		std::cerr << "Failed to open output.txt for writing." << std::endl;
-		return; // or handle the error appropriately
+		return num_rendered; // or handle the error appropriately
 	}
 
 	// Calculate and write the number of Gaussians per tile to the file
