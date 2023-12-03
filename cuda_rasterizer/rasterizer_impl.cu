@@ -352,7 +352,7 @@ int CudaRasterizer::Rasterizer::forward(
 	cudaMemcpy(h_ranges, imgState.ranges, tile_grid.x * tile_grid.y * sizeof(uint2), cudaMemcpyDeviceToHost);
 
 	// Open an output file stream
-	std::ofstream outFile("output.txt");
+	std::ofstream outFile("/content/output.txt");
 
 	// Check if the file is opened successfully
 	if (!outFile.is_open()) {
@@ -363,7 +363,16 @@ int CudaRasterizer::Rasterizer::forward(
 	// Calculate and write the number of Gaussians per tile to the file
 	for (int i = 0; i < tile_grid.x * tile_grid.y; ++i) {
 		int numGaussians = h_ranges[i].y - h_ranges[i].x;
-		outFile << "Tile " << i << " has " << numGaussians << " Gaussians" << std::endl;
+		// Calculate tile's position in the grid
+    	int row = i / tile_grid.x;
+    	int col = i % tile_grid.x;
+
+    	// Determine the pixel position of the tile
+    	int startX = col;
+    	int startY = row;
+	printf("width and height and block, %d, %d, %d, %d", width, height, BLOCK_X, BLOCK_Y)
+    outFile << "Tile " << i << " (Position: [" << startX << ", " << startY << "]) has " << numGaussians << " Gaussians" << std::endl;
+
 	}
 
 	// Close the file stream
