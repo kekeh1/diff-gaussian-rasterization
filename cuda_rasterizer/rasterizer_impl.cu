@@ -351,35 +351,24 @@ int CudaRasterizer::Rasterizer::forward(
 	uint2* h_ranges = new uint2[tile_grid.x * tile_grid.y];
 	cudaMemcpy(h_ranges, imgState.ranges, tile_grid.x * tile_grid.y * sizeof(uint2), cudaMemcpyDeviceToHost);
 
-	// Open an output file stream
-	std::ofstream outFile("/content/output.txt");
-
-	// Check if the file is opened successfully
+	std::ofstream outFile("gaussian_positions.txt");
 	if (!outFile.is_open()) {
-		std::cerr << "Failed to open output.txt for writing." << std::endl;
-		return num_rendered; // or handle the error appropriately
+		std::cerr << "Error opening file for output." << std::endl;
+		return;
 	}
 
-	// Calculate and write the number of Gaussians per tile to the file
-	for (int i = 0; i < tile_grid.x * tile_grid.y; ++i) {
-		int numGaussians = h_ranges[i].y - h_ranges[i].x;
-		// Calculate tile's position in the grid
-    	int row = i / tile_grid.x;
-    	int col = i % tile_grid.x;
+	// Assuming geomState is a populated GeometryState object and P is the number of Gaussians
+	for (size_t i = 0; i < P; ++i) {
+		float2 mean2D = geomState.means2D[i]; // Access 2D mean position
+		float depth = geomState.depths[i]; // Access depth
 
-    	// Determine the pixel position of the tile
-    	int startX = col * BLOCK_X;
-    	int startY = row * BLOCK_Y;
-	printf("width and height and block, %d, %d, %d, %d", width, height, BLOCK_X, BLOCK_Y);
-    outFile << "Tile " << i << " (Position: [" << startX << ", " << startY << "]) has " << numGaussians << " Gaussians" << std::endl;
-
+		// Write the 2D position and depth to the file
+		outFile << "Gaussian " << i << " Position: ";
+		outFile << "(" << mean2D.x << ", " << mean2D.y << ", " << depth << ")\n";
 	}
 
-	// Close the file stream
+	// Close the file
 	outFile.close();
-
-	// Clean up
-	delete[] h_ranges;
 
 	return num_rendered;
 }
