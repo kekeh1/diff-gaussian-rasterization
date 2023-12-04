@@ -343,33 +343,6 @@ int CudaRasterizer::Rasterizer::forward(
 
 	
 
-	// Synchronize CUDA device to ensure all kernels have finished
-	cudaDeviceSynchronize();
-
-	// Assume `imgState.ranges` holds the start and end indices for each tile's Gaussians
-	// and `tile_grid.x * tile_grid.y` is the total number of tiles
-	uint2* h_ranges = new uint2[tile_grid.x * tile_grid.y];
-	cudaMemcpy(h_ranges, imgState.ranges, tile_grid.x * tile_grid.y * sizeof(uint2), cudaMemcpyDeviceToHost);
-
-	std::ofstream outFile("/content/gaussian_positions.txt");
-	if (!outFile.is_open()) {
-		std::cerr << "Error opening file for output." << std::endl;
-		return num_rendered;
-	}
-
-	// Assuming geomState is a populated GeometryState object and P is the number of Gaussians
-	for (size_t i = 0; i < P; ++i) {
-		float2 mean2D = geomState.means2D[i]; // Access 2D mean position
-		float depth = geomState.depths[i]; // Access depth
-
-		// Write the 2D position and depth to the file
-		outFile << "Gaussian " << i << " Position: ";
-		outFile << "(" << mean2D.x << ", " << mean2D.y << ", " << depth << ")\n";
-	}
-
-	// Close the file
-	outFile.close();
-
 	return num_rendered;
 }
 
