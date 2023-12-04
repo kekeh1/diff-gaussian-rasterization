@@ -351,7 +351,7 @@ int CudaRasterizer::Rasterizer::forward(
 	uint2* h_ranges = new uint2[tile_grid.x * tile_grid.y];
 	cudaMemcpy(h_ranges, imgState.ranges, tile_grid.x * tile_grid.y * sizeof(uint2), cudaMemcpyDeviceToHost);
 
-	std::ofstream outFile("\content\gaussian_positions.txt");
+	std::ofstream outFile("/content/gaussian_positions.txt");
 	if (!outFile.is_open()) {
 		std::cerr << "Error opening file for output." << std::endl;
 		return num_rendered;
