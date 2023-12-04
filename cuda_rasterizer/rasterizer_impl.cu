@@ -354,7 +354,7 @@ int CudaRasterizer::Rasterizer::forward(
 	std::ofstream outFile("\content\gaussian_positions.txt");
 	if (!outFile.is_open()) {
 		std::cerr << "Error opening file for output." << std::endl;
-		return;
+		return num_rendered;
 	}
 
 	// Assuming geomState is a populated GeometryState object and P is the number of Gaussians
