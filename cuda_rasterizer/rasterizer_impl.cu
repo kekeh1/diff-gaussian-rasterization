@@ -352,15 +352,38 @@ int CudaRasterizer::Rasterizer::forward(
 	cudaMemcpy(means2D_cpu, geomState.means2D, numGaussians * sizeof(glm::vec2), cudaMemcpyDeviceToHost);
 	cudaMemcpy(cov3D_cpu, geomState.cov3D, numGaussians * 6 * sizeof(float), cudaMemcpyDeviceToHost);
 
-	// Print the data
-	for (int i = 0; i < numGaussians; ++i) {
-		std::cout << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
-		std::cout << "Covariance: [";
-		for (int j = 0; j < 6; ++j) {
-			std::cout << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
-		}
-		std::cout << std::endl;
+	// // Print the data
+	// for (int i = 0; i < numGaussians; ++i) {
+	// 	std::cout << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
+	// 	std::cout << "Covariance: [";
+	// 	for (int j = 0; j < 6; ++j) {
+	// 		std::cout << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
+	// 	}
+	// 	std::cout << std::endl;
+	// }
+	// ... [rest of your code] ...
+
+	// Open a file for writing
+	std::ofstream file("/content/gaussians_data.txt");
+
+	// Check if the file is open
+	if (!file.is_open()) {
+		std::cerr << "Error opening file for writing." << std::endl;
+		return; // or handle the error as you see fit
 	}
+
+	// Write the data to the file
+	for (int i = 0; i < numGaussians; ++i) {
+		file << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
+		file << "Covariance: [";
+		for (int j = 0; j < 6; ++j) {
+			file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
+		}
+		file << std::endl;
+	}
+
+	// Close the file
+	file.close();
 
 	// Free the allocated CPU memory
 	delete[] means2D_cpu;
