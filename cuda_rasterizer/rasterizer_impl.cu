@@ -341,7 +341,30 @@ int CudaRasterizer::Rasterizer::forward(
 		background,
 		out_color), debug)
 
-	
+	// Determine the number of Gaussians (assuming you have this information)
+	int numGaussians = P; // P is the number of Gaussians
+
+	// Allocate CPU memory to store the Gaussians' 2D means and covariances
+	glm::vec2* means2D_cpu = new glm::vec2[numGaussians];
+	float* cov3D_cpu = new float[numGaussians * 6]; // 6 values for each symmetric 3x3 covariance matrix
+
+	// Transfer the data from GPU to CPU
+	cudaMemcpy(means2D_cpu, geomState.means2D, numGaussians * sizeof(glm::vec2), cudaMemcpyDeviceToHost);
+	cudaMemcpy(cov3D_cpu, geomState.cov3D, numGaussians * 6 * sizeof(float), cudaMemcpyDeviceToHost);
+
+	// Print the data
+	for (int i = 0; i < numGaussians; ++i) {
+		std::cout << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
+		std::cout << "Covariance: [";
+		for (int j = 0; j < 6; ++j) {
+			std::cout << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
+		}
+		std::cout << std::endl;
+	}
+
+	// Free the allocated CPU memory
+	delete[] means2D_cpu;
+	delete[] cov3D_cpu;
 
 	return num_rendered;
 }
