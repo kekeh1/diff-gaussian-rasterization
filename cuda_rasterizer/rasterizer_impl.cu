@@ -369,7 +369,7 @@ int CudaRasterizer::Rasterizer::forward(
 	// Check if the file is open
 	if (!file.is_open()) {
 		std::cerr << "Error opening file for writing." << std::endl;
-		return; // or handle the error as you see fit
+	
 	}
 
 	// Write the data to the file
