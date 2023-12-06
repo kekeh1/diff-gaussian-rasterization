@@ -8,7 +8,10 @@
  *
  * For inquiries contact  george.drettakis@inria.fr
  */
-
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <glm/glm.hpp> // Assuming glm is used
 #include "forward.h"
 #include "auxiliary.h"
 #include <cooperative_groups.h>
