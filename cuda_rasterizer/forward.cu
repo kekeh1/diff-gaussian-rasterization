@@ -372,6 +372,49 @@ renderCUDA(
 			out_color[ch * H * W + pix_id] = C[ch] + T * bg_color[ch];
 	}
 }
+void saveParametersToFile(
+    const dim3& grid, const dim3& block,
+    const uint2* ranges,
+    const uint32_t* point_list,
+    int W, int H,
+    const float2* means2D,
+    const float* colors,
+    const float4* conic_opacity,
+    float* final_T,
+    uint32_t* n_contrib,
+    const float* bg_color,
+    float* out_color,
+    const std::string& filename)
+{
+    std::ofstream file;
+    file.open(filename);
+
+    if (!file.is_open()) {
+        std::cerr << "Error opening file for writing." << std::endl;
+        return;
+    }
+
+    // Save dim3 parameters
+    file << "Grid: " << grid.x << ", " << grid.y << ", " << grid.z << "\n";
+    file << "Block: " << block.x << ", " << block.y << ", " << block.z << "\n";
+
+    // Save int parameters
+    file << "W: " << W << "\n";
+    file << "H: " << H << "\n";
+
+    // For pointers, you might want to just save whether they are non-null
+    file << "ranges: " << (ranges != nullptr ? "Non-null" : "Null") << "\n";
+    file << "point_list: " << (point_list != nullptr ? "Non-null" : "Null") << "\n";
+    file << "means2D: " << (means2D != nullptr ? "Non-null" : "Null") << "\n";
+    file << "colors: " << (colors != nullptr ? "Non-null" : "Null") << "\n";
+    file << "conic_opacity: " << (conic_opacity != nullptr ? "Non-null" : "Null") << "\n";
+    file << "final_T: " << (final_T != nullptr ? "Non-null" : "Null") << "\n";
+    file << "n_contrib: " << (n_contrib != nullptr ? "Non-null" : "Null") << "\n";
+    file << "bg_color: " << (bg_color != nullptr ? "Non-null" : "Null") << "\n";
+    file << "out_color: " << (out_color != nullptr ? "Non-null" : "Null") << "\n";
+
+    file.close();
+}
 
 void FORWARD::render(
 	const dim3 grid, dim3 block,
@@ -386,6 +429,8 @@ void FORWARD::render(
 	const float* bg_color,
 	float* out_color)
 {
+	saveParametersToFile(grid, block, ranges, point_list, W, H, means2D, colors, conic_opacity, final_T, n_contrib, bg_color, out_color, "/content/parameters.txt");
+
 	renderCUDA<NUM_CHANNELS> << <grid, block >> > (
 		ranges,
 		point_list,

@@ -363,31 +363,31 @@ int CudaRasterizer::Rasterizer::forward(
 	// }
 	
 
-	// Open a file for writing
-	std::ofstream file("/content/gaussians_data.txt");
+	// // Open a file for writing
+	// std::ofstream file("/content/gaussians_data.txt");
 
-	// Check if the file is open
-	if (!file.is_open()) {
-		std::cerr << "Error opening file for writing." << std::endl;
+	// // Check if the file is open
+	// if (!file.is_open()) {
+	// 	std::cerr << "Error opening file for writing." << std::endl;
 	
-	}
+	// }
 
-	// Write the data to the file
-	for (int i = 0; i < numGaussians; ++i) {
-		file << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
-		file << "Covariance: [";
-		for (int j = 0; j < 6; ++j) {
-			file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
-		}
-		file << std::endl;
-	}
+	// // Write the data to the file
+	// for (int i = 0; i < numGaussians; ++i) {
+	// 	file << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
+	// 	file << "Covariance: [";
+	// 	for (int j = 0; j < 6; ++j) {
+	// 		file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
+	// 	}
+	// 	file << std::endl;
+	// }
 
-	// Close the file
-	file.close();
+	// // Close the file
+	// file.close();
 
-	// Free the allocated CPU memory
-	delete[] means2D_cpu;
-	delete[] cov3D_cpu;
+	// // Free the allocated CPU memory
+	// delete[] means2D_cpu;
+	// delete[] cov3D_cpu;
 
 	return num_rendered;
 }
