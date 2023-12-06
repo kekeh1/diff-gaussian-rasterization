@@ -432,7 +432,7 @@ void FORWARD::render(
 	const float* bg_color,
 	float* out_color)
 {
-	saveParametersToFile(grid, block, ranges, point_list, W, H, means2D, colors, conic_opacity, final_T, n_contrib, bg_color, out_color, "/content/parameters.txt");
+	
 
 	renderCUDA<NUM_CHANNELS> << <grid, block >> > (
 		ranges,

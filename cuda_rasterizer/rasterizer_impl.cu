@@ -145,6 +145,45 @@ __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* rang
 		//printf("Tile %u has %d Gaussians\n", currtile, L - ranges[currtile].x);
 	}
 }
+void saveRenderParametersToFile(
+    const dim3& tile_grid, const dim3& block,
+    const uint2* imgState_ranges, // Assuming we know the size or range of interest
+    const uint32_t* binningState_point_list, // Assuming we know the size or range of interest
+    int width, int height,
+    const float2* geomState_means2D, // Assuming we know the size or range of interest
+    const float* feature_ptr, // Assuming we know the size or range of interest
+    const float4* geomState_conic_opacity, // Assuming we know the size or range of interest
+    float* imgState_accum_alpha, // Assuming we know the size or range of interest
+    uint32_t* imgState_n_contrib, // Assuming we know the size or range of interest
+    const float* background, // Assuming we know the size or range of interest
+    float* out_color, // Assuming we know the size or range of interest
+    const std::string& filename)
+{
+    std::ofstream file;
+    file.open(filename);
+
+    if (!file.is_open()) {
+        std::cerr << "Error opening file for writing." << std::endl;
+        return;
+    }
+
+    // Write each parameter to the file
+    file << "Tile Grid: (" << tile_grid.x << ", " << tile_grid.y << ", " << tile_grid.z << ")\n";
+    file << "Block: (" << block.x << ", " << block.y << ", " << block.z << ")\n";
+    file << "imgState_ranges pointer: " << imgState_ranges << "\n";
+    file << "binningState_point_list pointer: " << binningState_point_list << "\n";
+    file << "Width: " << width << "\n";
+    file << "Height: " << height << "\n";
+    file << "geomState_means2D pointer: " << geomState_means2D << "\n";
+    file << "Feature pointer: " << feature_ptr << "\n";
+    file << "geomState_conic_opacity pointer: " << geomState_conic_opacity << "\n";
+    file << "imgState_accum_alpha pointer: " << imgState_accum_alpha << "\n";
+    file << "imgState_n_contrib pointer: " << imgState_n_contrib << "\n";
+    file << "Background pointer: " << background << "\n";
+    file << "Out color pointer: " << out_color << "\n";
+
+    file.close();
+}
 
 // Mark Gaussians as visible/invisible, based on view frustum testing
 void CudaRasterizer::Rasterizer::markVisible(
@@ -328,6 +367,10 @@ int CudaRasterizer::Rasterizer::forward(
 
 	// Let each tile blend its range of Gaussians independently in parallel
 	const float* feature_ptr = colors_precomp != nullptr ? colors_precomp : geomState.rgb;
+	
+	saveRenderParametersToFile(tile_grid, block, imgState_ranges, binningState_point_list, width, height, geomState_means2D, feature_ptr, geomState_conic_opacity, imgState_accum_alpha, imgState_n_contrib, background, out_color, "render_parameters.txt");
+
+
 	CHECK_CUDA(FORWARD::render(
 		tile_grid, block,
 		imgState.ranges,
@@ -361,7 +404,7 @@ int CudaRasterizer::Rasterizer::forward(
 	// 	}
 	// 	std::cout << std::endl;
 	// }
-	
+	// 
 
 	// // Open a file for writing
 	// std::ofstream file("/content/gaussians_data.txt");
