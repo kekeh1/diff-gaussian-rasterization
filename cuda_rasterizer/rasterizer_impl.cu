@@ -334,7 +334,7 @@ int CudaRasterizer::Rasterizer::forward(
 	const float* feature_ptr = colors_precomp != nullptr ? colors_precomp : geomState.rgb;
 	
 	
-	int numGaussians = P
+	int numGaussians = P;
 
 	// Allocate CPU memory for all parameters
 	glm::vec2* means2D_cpu = new glm::vec2[numGaussians];
@@ -351,7 +351,7 @@ int CudaRasterizer::Rasterizer::forward(
 	cudaMemcpy(depths_cpu, geomState.depths, numGaussians * sizeof(float), cudaMemcpyDeviceToHost);
 	cudaMemcpy(clamped_cpu, geomState.clamped, numGaussians * sizeof(bool), cudaMemcpyDeviceToHost);
 	cudaMemcpy(internal_radii_cpu, geomState.internal_radii, numGaussians * sizeof(int), cudaMemcpyDeviceToHost);
-	cudaMemcpy(conic_opacity_cpu, geomState.conic_opacity, numGaussians * sizeof(glm::vec4), cudaMemcpyDeviceToHost)
+	cudaMemcpy(conic_opacity_cpu, geomState.conic_opacity, numGaussians * sizeof(glm::vec4), cudaMemcpyDeviceToHost);
 	cudaMemcpy(rgb_cpu, geomState.rgb, numGaussians * 3 * sizeof(float), cudaMemcpyDeviceToHost);
 
 	// Open a file for writing
