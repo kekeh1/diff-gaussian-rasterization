@@ -335,9 +335,9 @@ int CudaRasterizer::Rasterizer::forward(
 	
 	
 	
-	int numGaussians = P;
-
-	// Allocate CPU memory for other geometry state parameters
+	// Allocate CPU memory for all parameters
+	glm::vec2* means2D_cpu = new glm::vec2[numGaussians];
+	float* cov3D_cpu = new float[numGaussians * 6]; // 6 values for each symmetric 3x3 covariance matrix
 	float* depths_cpu = new float[numGaussians];
 	bool* clamped_cpu = new bool[numGaussians];
 	int* internal_radii_cpu = new int[numGaussians];
@@ -345,41 +345,37 @@ int CudaRasterizer::Rasterizer::forward(
 	float* rgb_cpu = new float[numGaussians * 3]; // 3 values for RGB
 
 	// Transfer the data from GPU to CPU
+	cudaMemcpy(means2D_cpu, geomState.means2D, numGaussians * sizeof(glm::vec2), cudaMemcpyDeviceToHost);
+	cudaMemcpy(cov3D_cpu, geomState.cov3D, numGaussians * 6 * sizeof(float), cudaMemcpyDeviceToHost);
 	cudaMemcpy(depths_cpu, geomState.depths, numGaussians * sizeof(float), cudaMemcpyDeviceToHost);
 	cudaMemcpy(clamped_cpu, geomState.clamped, numGaussians * sizeof(bool), cudaMemcpyDeviceToHost);
 	cudaMemcpy(internal_radii_cpu, geomState.internal_radii, numGaussians * sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy(conic_opacity_cpu, geomState.conic_opacity, numGaussians * sizeof(glm::float4), cudaMemcpyDeviceToHost);
 	cudaMemcpy(rgb_cpu, geomState.rgb, numGaussians * 3 * sizeof(float), cudaMemcpyDeviceToHost);
 
-	// ... [other code] ...
+	// Open a file for writing
+	std::ofstream file("/content/geometry_data.txt");
+	if (!file.is_open()) {
+		std::cerr << "Error opening file for writing." << std::endl;
+		// Handle error (possibly exit or return)
+	}
 
-	// Inside the loop, use *_cpu arrays instead of accessing geomState directly
+	// Writing all geometry state parameters to the file
 	for (int i = 0; i < numGaussians; ++i) {
-
-		// Write 2D Mean and Covariance (existing code)
-		file << "Gaussian: " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
+		file << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
 		file << "Covariance: [";
 		for (int j = 0; j < 6; ++j) {
 			file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
 		}
 		file << std::endl;
 
-		// Write Depth
 		file << "Depth: " << depths_cpu[i] << std::endl;
-
-		// Write Clamped (boolean value)
 		file << "Clamped: " << (clamped_cpu[i] ? "true" : "false") << std::endl;
-
-		// Write Internal Radii
 		file << "Internal Radii: " << internal_radii_cpu[i] << std::endl;
-
-		// Write Conic Opacity
 		file << "Conic Opacity: (" << conic_opacity_cpu[i].x << ", "
 			<< conic_opacity_cpu[i].y << ", "
 			<< conic_opacity_cpu[i].z << ", "
 			<< conic_opacity_cpu[i].w << ")" << std::endl;
-
-		// Write RGB
 		file << "RGB: (" << rgb_cpu[i * 3] << ", "
 			<< rgb_cpu[i * 3 + 1] << ", "
 			<< rgb_cpu[i * 3 + 2] << ")" << std::endl;
@@ -390,7 +386,7 @@ int CudaRasterizer::Rasterizer::forward(
 	// Close the file
 	file.close();
 
-	// Free the allocated CPU memory for all parameters
+	// Free the allocated CPU memory
 	delete[] means2D_cpu;
 	delete[] cov3D_cpu;
 	delete[] depths_cpu;
