@@ -334,14 +334,15 @@ int CudaRasterizer::Rasterizer::forward(
 	const float* feature_ptr = colors_precomp != nullptr ? colors_precomp : geomState.rgb;
 	
 	
-	
+	int numGaussians = P
+
 	// Allocate CPU memory for all parameters
 	glm::vec2* means2D_cpu = new glm::vec2[numGaussians];
 	float* cov3D_cpu = new float[numGaussians * 6]; // 6 values for each symmetric 3x3 covariance matrix
 	float* depths_cpu = new float[numGaussians];
 	bool* clamped_cpu = new bool[numGaussians];
 	int* internal_radii_cpu = new int[numGaussians];
-	glm::float4* conic_opacity_cpu = new glm::float4[numGaussians];
+	glm::vec4* conic_opacity_cpu = new glm::vec4[numGaussians];
 	float* rgb_cpu = new float[numGaussians * 3]; // 3 values for RGB
 
 	// Transfer the data from GPU to CPU
@@ -350,7 +351,7 @@ int CudaRasterizer::Rasterizer::forward(
 	cudaMemcpy(depths_cpu, geomState.depths, numGaussians * sizeof(float), cudaMemcpyDeviceToHost);
 	cudaMemcpy(clamped_cpu, geomState.clamped, numGaussians * sizeof(bool), cudaMemcpyDeviceToHost);
 	cudaMemcpy(internal_radii_cpu, geomState.internal_radii, numGaussians * sizeof(int), cudaMemcpyDeviceToHost);
-	cudaMemcpy(conic_opacity_cpu, geomState.conic_opacity, numGaussians * sizeof(glm::float4), cudaMemcpyDeviceToHost);
+	cudaMemcpy(conic_opacity_cpu, geomState.conic_opacity, numGaussians * sizeof(glm::vec4), cudaMemcpyDeviceToHost)
 	cudaMemcpy(rgb_cpu, geomState.rgb, numGaussians * 3 * sizeof(float), cudaMemcpyDeviceToHost);
 
 	// Open a file for writing
@@ -372,10 +373,10 @@ int CudaRasterizer::Rasterizer::forward(
 		file << "Depth: " << depths_cpu[i] << std::endl;
 		file << "Clamped: " << (clamped_cpu[i] ? "true" : "false") << std::endl;
 		file << "Internal Radii: " << internal_radii_cpu[i] << std::endl;
-		file << "Conic Opacity: (" << conic_opacity_cpu[i].x << ", "
-			<< conic_opacity_cpu[i].y << ", "
-			<< conic_opacity_cpu[i].z << ", "
-			<< conic_opacity_cpu[i].w << ")" << std::endl;
+		 file << "Conic Opacity: (" << conic_opacity_cpu[i].x << ", "
+         << conic_opacity_cpu[i].y << ", "
+         << conic_opacity_cpu[i].z << ", "
+         << conic_opacity_cpu[i].w << ")" << std::endl;
 		file << "RGB: (" << rgb_cpu[i * 3] << ", "
 			<< rgb_cpu[i * 3 + 1] << ", "
 			<< rgb_cpu[i * 3 + 2] << ")" << std::endl;
