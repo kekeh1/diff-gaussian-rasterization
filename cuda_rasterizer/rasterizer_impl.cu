@@ -203,47 +203,7 @@ CudaRasterizer::BinningState CudaRasterizer::BinningState::fromChunk(char*& chun
 	return binning;
 }
 
-void SaveGeometryStateToFile(const CudaRasterizer::GeometryState& geomState, const std::string& filename) {
-    std::ofstream outFile(filename);
-    if (!outFile.is_open()) {
-        std::cerr << "Error opening file: " << filename << std::endl;
-        return;
-    }
 
-    // Saving geomState.means2D
-    outFile << "Means2D:\n";
-    for (const auto& val : geomState.means2D) { // Assuming means2D is a container like std::vector
-        outFile << val.x << " " << val.y << std::endl;
-    }
-
-    // Saving geomState.depths
-    outFile << "\nDepths:\n";
-    for (const auto& depth : geomState.depths) { // Assuming depths is a container
-        outFile << depth << std::endl;
-    }
-
-    // Saving geomState.cov3D
-    outFile << "\nCov3D:\n";
-    for (size_t i = 0; i < geomState.cov3D.size(); i += 6) { // Assuming cov3D is a container
-        outFile << geomState.cov3D[i] << " " << geomState.cov3D[i+1] << " " << // and so on for the other elements
-                   geomState.cov3D[i+2] << " " << geomState.cov3D[i+3] << " " <<
-                   geomState.cov3D[i+4] << " " << geomState.cov3D[i+5] << std::endl;
-    }
-
-    // Saving geomState.rgb
-    outFile << "\nRGB:\n";
-    for (size_t i = 0; i < geomState.rgb.size(); i += 3) { // Assuming rgb is a container
-        outFile << geomState.rgb[i] << " " << geomState.rgb[i+1] << " " << geomState.rgb[i+2] << std::endl;
-    }
-
-    // Saving geomState.conic_opacity
-    outFile << "\nConic Opacity:\n";
-    for (const auto& opacity : geomState.conic_opacity) { // Assuming conic_opacity is a container
-        outFile << opacity << std::endl;
-    }
-
-    outFile.close();
-}
 
 
 // Forward rendering procedure for differentiable rasterization
@@ -373,6 +333,53 @@ int CudaRasterizer::Rasterizer::forward(
 	// Let each tile blend its range of Gaussians independently in parallel
 	const float* feature_ptr = colors_precomp != nullptr ? colors_precomp : geomState.rgb;
 
+	int numGaussians = P;
+	std::ofstream file("/content/geometry_data.txt");
+	if (!file.is_open()) {
+		std::cerr << "Error opening file for writing." << std::endl;
+		return; // Or handle the error as needed
+	}
+
+	// Writing other geometry state parameters
+	for (int i = 0; i < numGaussians; ++i) {
+		// Write 2D Mean and Covariance (existing code)
+		file << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
+		file << "Covariance: [";
+		for (int j = 0; j < 6; ++j) {
+			file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
+		}
+		file << std::endl;
+
+		// Write Depth
+		file << "Depth: " << geomState.depths[i] << std::endl;
+
+		// Write Clamped (boolean value)
+		file << "Clamped: " << (geomState.clamped[i] ? "true" : "false") << std::endl;
+
+		// Write Internal Radii
+		file << "Internal Radii: " << geomState.internal_radii[i] << std::endl;
+
+		// Write Conic Opacity
+		file << "Conic Opacity: (" << geomState.conic_opacity[i].x << ", "
+			<< geomState.conic_opacity[i].y << ", "
+			<< geomState.conic_opacity[i].z << ", "
+			<< geomState.conic_opacity[i].w << ")" << std::endl;
+
+		// Write RGB
+		file << "RGB: (" << geomState.rgb[i * 3] << ", "
+			<< geomState.rgb[i * 3 + 1] << ", "
+			<< geomState.rgb[i * 3 + 2] << ")" << std::endl;
+
+		file << "---------------------" << std::endl;
+	}
+
+	// Close the file
+	file.close();
+
+	// Free the allocated CPU memory
+	delete[] means2D_cpu;
+	delete[] cov3D_cpu;
+
 
 	CHECK_CUDA(FORWARD::render(
 		tile_grid, block,
@@ -386,20 +393,7 @@ int CudaRasterizer::Rasterizer::forward(
 		imgState.n_contrib,
 		background,
 		out_color), debug)
-
-	// Determine the number of Gaussians (assuming you have this information)
-	int numGaussians = P; // P is the number of Gaussians
-
-	// Allocate CPU memory to store the Gaussians' 2D means and covariances
-	glm::vec2* means2D_cpu = new glm::vec2[numGaussians];
-	float* cov3D_cpu = new float[numGaussians * 6]; // 6 values for each symmetric 3x3 covariance matrix
-
-	// Transfer the data from GPU to CPU
-	cudaMemcpy(means2D_cpu, geomState.means2D, numGaussians * sizeof(glm::vec2), cudaMemcpyDeviceToHost);
-	cudaMemcpy(cov3D_cpu, geomState.cov3D, numGaussians * 6 * sizeof(float), cudaMemcpyDeviceToHost);
-
-	SaveGeometryStateToFile(geomState, "path_to_your_output_file.txt");
-
+	
 	// // Print the data
 	// for (int i = 0; i < numGaussians; ++i) {
 	// 	std::cout << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
@@ -420,22 +414,7 @@ int CudaRasterizer::Rasterizer::forward(
 	
 	// }
 
-	// // Write the data to the file
-	// for (int i = 0; i < numGaussians; ++i) {
-	// 	file << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
-	// 	file << "Covariance: [";
-	// 	for (int j = 0; j < 6; ++j) {
-	// 		file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
-	// 	}
-	// 	file << std::endl;
-	// }
-
-	// // Close the file
-	// file.close();
-
-	// // Free the allocated CPU memory
-	// delete[] means2D_cpu;
-	// delete[] cov3D_cpu;
+	
 
 	return num_rendered;
 }
