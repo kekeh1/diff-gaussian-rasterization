@@ -145,45 +145,7 @@ __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint2* rang
 		//printf("Tile %u has %d Gaussians\n", currtile, L - ranges[currtile].x);
 	}
 }
-void saveRenderParametersToFile(
-    const dim3& tile_grid, const dim3& block,
-    const uint2* imgState_ranges, // Assuming we know the size or range of interest
-    const uint32_t* binningState_point_list, // Assuming we know the size or range of interest
-    int width, int height,
-    const float2* geomState_means2D, // Assuming we know the size or range of interest
-    const float* feature_ptr, // Assuming we know the size or range of interest
-    const float4* geomState_conic_opacity, // Assuming we know the size or range of interest
-    float* imgState_accum_alpha, // Assuming we know the size or range of interest
-    uint32_t* imgState_n_contrib, // Assuming we know the size or range of interest
-    const float* background, // Assuming we know the size or range of interest
-    float* out_color, // Assuming we know the size or range of interest
-    const std::string& filename)
-{
-    std::ofstream file;
-    file.open(filename);
 
-    if (!file.is_open()) {
-        std::cerr << "Error opening file for writing." << std::endl;
-        return;
-    }
-
-    // Write each parameter to the file
-    file << "Tile Grid: (" << tile_grid.x << ", " << tile_grid.y << ", " << tile_grid.z << ")\n";
-    file << "Block: (" << block.x << ", " << block.y << ", " << block.z << ")\n";
-    file << "imgState_ranges pointer: " << imgState_ranges << "\n";
-    file << "binningState_point_list pointer: " << binningState_point_list << "\n";
-    file << "Width: " << width << "\n";
-    file << "Height: " << height << "\n";
-    file << "geomState_means2D pointer: " << geomState_means2D << "\n";
-    file << "Feature pointer: " << feature_ptr << "\n";
-    file << "geomState_conic_opacity pointer: " << geomState_conic_opacity << "\n";
-    file << "imgState_accum_alpha pointer: " << imgState_accum_alpha << "\n";
-    file << "imgState_n_contrib pointer: " << imgState_n_contrib << "\n";
-    file << "Background pointer: " << background << "\n";
-    file << "Out color pointer: " << out_color << "\n";
-
-    file.close();
-}
 
 // Mark Gaussians as visible/invisible, based on view frustum testing
 void CudaRasterizer::Rasterizer::markVisible(
@@ -240,7 +202,63 @@ CudaRasterizer::BinningState CudaRasterizer::BinningState::fromChunk(char*& chun
 	obtain(chunk, binning.list_sorting_space, binning.sorting_size, 128);
 	return binning;
 }
+// Example function to save GeometryState to a text file
+void saveGeometryStateToFile(const GeometryState& geomState, int P, const std::string& filename) {
+    // Open a file for writing
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error opening file for writing." << std::endl;
+        return;
+    }
 
+    // Allocate CPU memory and transfer data from GPU
+    float* depths_cpu = new float[P];
+    bool* clamped_cpu = new bool[P * 3];
+    int* internal_radii_cpu = new int[P];
+    float2* means2D_cpu = new float2[P];
+    float* cov3D_cpu = new float[P * 6];
+    float4* conic_opacity_cpu = new float4[P];
+    float* rgb_cpu = new float[P * 3];
+    uint32_t* point_offsets_cpu = new uint32_t[P];
+    uint32_t* tiles_touched_cpu = new uint32_t[P];
+
+    cudaMemcpy(depths_cpu, geomState.depths, P * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(clamped_cpu, geomState.clamped, P * 3 * sizeof(bool), cudaMemcpyDeviceToHost);
+    cudaMemcpy(internal_radii_cpu, geomState.internal_radii, P * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(means2D_cpu, geomState.means2D, P * sizeof(float2), cudaMemcpyDeviceToHost);
+    cudaMemcpy(cov3D_cpu, geomState.cov3D, P * 6 * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(conic_opacity_cpu, geomState.conic_opacity, P * sizeof(float4), cudaMemcpyDeviceToHost);
+    cudaMemcpy(rgb_cpu, geomState.rgb, P * 3 * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(point_offsets_cpu, geomState.point_offsets, P * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    cudaMemcpy(tiles_touched_cpu, geomState.tiles_touched, P * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+
+    // Write data to file
+    for (int i = 0; i < P; ++i) {
+        file << "Depth: " << depths_cpu[i] << ", Clamped: " << clamped_cpu[i] 
+             << ", Internal Radius: " << internal_radii_cpu[i] << ", Mean2D: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")"
+             << ", Cov3D: [" << cov3D_cpu[i * 6] << ", " << cov3D_cpu[i * 6 + 1] << ", " << cov3D_cpu[i * 6 + 2] << ", "
+             << cov3D_cpu[i * 6 + 3] << ", " << cov3D_cpu[i * 6 + 4] << ", " << cov3D_cpu[i * 6 + 5] << "]"
+             << ", Conic Opacity: [" << conic_opacity_cpu[i].x << ", " << conic_opacity_cpu[i].y << ", "
+             << conic_opacity_cpu[i].z << ", " << conic_opacity_cpu[i].w << "]"
+             << ", RGB: [" << rgb_cpu[i * 3] << ", " << rgb_cpu[i * 3 + 1] << ", " << rgb_cpu[i * 3 + 2] << "]"
+             << ", Point Offset: " << point_offsets_cpu[i] << ", Tiles Touched: " << tiles_touched_cpu[i]
+             << std::endl;
+    }
+
+    // Close the file
+    file.close();
+
+    // Free the allocated CPU memory
+    delete[] depths_cpu;
+    delete[] clamped_cpu;
+    delete[] internal_radii_cpu;
+    delete[] means2D_cpu;
+    delete[] cov3D_cpu;
+    delete[] conic_opacity_cpu;
+    delete[] rgb_cpu;
+    delete[] point_offsets_cpu;
+    delete[] tiles_touched_cpu;
+}
 // Forward rendering procedure for differentiable rasterization
 // of Gaussians.
 int CudaRasterizer::Rasterizer::forward(
@@ -291,7 +309,10 @@ int CudaRasterizer::Rasterizer::forward(
 	{
 		throw std::runtime_error("For non-RGB, provide precomputed Gaussian colors!");
 	}
+	std::string filename = "/content/file.txt";
 
+	// Call the function to save the data to the file
+	saveGeometryStateToFile(geomState, P, filename);
 	// Run preprocessing per-Gaussian (transformation, bounding, conversion of SHs to RGB)
 	CHECK_CUDA(FORWARD::preprocess(
 		P, D, M,
@@ -367,8 +388,6 @@ int CudaRasterizer::Rasterizer::forward(
 
 	// Let each tile blend its range of Gaussians independently in parallel
 	const float* feature_ptr = colors_precomp != nullptr ? colors_precomp : geomState.rgb;
-	
-	saveRenderParametersToFile(tile_grid, block, imgState.ranges, binningState.point_list, width, height, geomState.means2D, feature_ptr, geomState.conic_opacity, imgState.accum_alpha, imgState.n_contrib, background, out_color, "render_parameters.txt");
 
 
 	CHECK_CUDA(FORWARD::render(
