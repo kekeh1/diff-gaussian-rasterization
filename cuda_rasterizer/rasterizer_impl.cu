@@ -202,63 +202,50 @@ CudaRasterizer::BinningState CudaRasterizer::BinningState::fromChunk(char*& chun
 	obtain(chunk, binning.list_sorting_space, binning.sorting_size, 128);
 	return binning;
 }
-// Example function to save GeometryState to a text file
-void saveGeometryStateToFile(GeometryState geomState, int P, const std::string& filename) {
-    // Open a file for writing
-    std::ofstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Error opening file for writing." << std::endl;
+
+void SaveGeometryStateToFile(const CudaRasterizer::GeometryState& geomState, const std::string& filename) {
+    std::ofstream outFile(filename);
+    if (!outFile.is_open()) {
+        std::cerr << "Error opening file: " << filename << std::endl;
         return;
     }
 
-    // Allocate CPU memory and transfer data from GPU
-    float* depths_cpu = new float[P];
-    bool* clamped_cpu = new bool[P * 3];
-    int* internal_radii_cpu = new int[P];
-    float2* means2D_cpu = new float2[P];
-    float* cov3D_cpu = new float[P * 6];
-    float4* conic_opacity_cpu = new float4[P];
-    float* rgb_cpu = new float[P * 3];
-    uint32_t* point_offsets_cpu = new uint32_t[P];
-    uint32_t* tiles_touched_cpu = new uint32_t[P];
-
-    cudaMemcpy(depths_cpu, geomState.depths, P * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(clamped_cpu, geomState.clamped, P * 3 * sizeof(bool), cudaMemcpyDeviceToHost);
-    cudaMemcpy(internal_radii_cpu, geomState.internal_radii, P * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(means2D_cpu, geomState.means2D, P * sizeof(float2), cudaMemcpyDeviceToHost);
-    cudaMemcpy(cov3D_cpu, geomState.cov3D, P * 6 * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(conic_opacity_cpu, geomState.conic_opacity, P * sizeof(float4), cudaMemcpyDeviceToHost);
-    cudaMemcpy(rgb_cpu, geomState.rgb, P * 3 * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(point_offsets_cpu, geomState.point_offsets, P * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-    cudaMemcpy(tiles_touched_cpu, geomState.tiles_touched, P * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-
-    // Write data to file
-    for (int i = 0; i < P; ++i) {
-        file << "Depth: " << depths_cpu[i] << ", Clamped: " << clamped_cpu[i] 
-             << ", Internal Radius: " << internal_radii_cpu[i] << ", Mean2D: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")"
-             << ", Cov3D: [" << cov3D_cpu[i * 6] << ", " << cov3D_cpu[i * 6 + 1] << ", " << cov3D_cpu[i * 6 + 2] << ", "
-             << cov3D_cpu[i * 6 + 3] << ", " << cov3D_cpu[i * 6 + 4] << ", " << cov3D_cpu[i * 6 + 5] << "]"
-             << ", Conic Opacity: [" << conic_opacity_cpu[i].x << ", " << conic_opacity_cpu[i].y << ", "
-             << conic_opacity_cpu[i].z << ", " << conic_opacity_cpu[i].w << "]"
-             << ", RGB: [" << rgb_cpu[i * 3] << ", " << rgb_cpu[i * 3 + 1] << ", " << rgb_cpu[i * 3 + 2] << "]"
-             << ", Point Offset: " << point_offsets_cpu[i] << ", Tiles Touched: " << tiles_touched_cpu[i]
-             << std::endl;
+    // Saving geomState.means2D
+    outFile << "Means2D:\n";
+    for (const auto& val : geomState.means2D) { // Assuming means2D is a container like std::vector
+        outFile << val.x << " " << val.y << std::endl;
     }
 
-    // Close the file
-    file.close();
+    // Saving geomState.depths
+    outFile << "\nDepths:\n";
+    for (const auto& depth : geomState.depths) { // Assuming depths is a container
+        outFile << depth << std::endl;
+    }
 
-    // Free the allocated CPU memory
-    delete[] depths_cpu;
-    delete[] clamped_cpu;
-    delete[] internal_radii_cpu;
-    delete[] means2D_cpu;
-    delete[] cov3D_cpu;
-    delete[] conic_opacity_cpu;
-    delete[] rgb_cpu;
-    delete[] point_offsets_cpu;
-    delete[] tiles_touched_cpu;
+    // Saving geomState.cov3D
+    outFile << "\nCov3D:\n";
+    for (size_t i = 0; i < geomState.cov3D.size(); i += 6) { // Assuming cov3D is a container
+        outFile << geomState.cov3D[i] << " " << geomState.cov3D[i+1] << " " << // and so on for the other elements
+                   geomState.cov3D[i+2] << " " << geomState.cov3D[i+3] << " " <<
+                   geomState.cov3D[i+4] << " " << geomState.cov3D[i+5] << std::endl;
+    }
+
+    // Saving geomState.rgb
+    outFile << "\nRGB:\n";
+    for (size_t i = 0; i < geomState.rgb.size(); i += 3) { // Assuming rgb is a container
+        outFile << geomState.rgb[i] << " " << geomState.rgb[i+1] << " " << geomState.rgb[i+2] << std::endl;
+    }
+
+    // Saving geomState.conic_opacity
+    outFile << "\nConic Opacity:\n";
+    for (const auto& opacity : geomState.conic_opacity) { // Assuming conic_opacity is a container
+        outFile << opacity << std::endl;
+    }
+
+    outFile.close();
 }
+
+
 // Forward rendering procedure for differentiable rasterization
 // of Gaussians.
 int CudaRasterizer::Rasterizer::forward(
@@ -309,10 +296,7 @@ int CudaRasterizer::Rasterizer::forward(
 	{
 		throw std::runtime_error("For non-RGB, provide precomputed Gaussian colors!");
 	}
-	std::string filename = "/content/file.txt";
-
-	// Call the function to save the data to the file
-	saveGeometryStateToFile(geomState, P, filename);
+	
 	// Run preprocessing per-Gaussian (transformation, bounding, conversion of SHs to RGB)
 	CHECK_CUDA(FORWARD::preprocess(
 		P, D, M,
@@ -413,6 +397,8 @@ int CudaRasterizer::Rasterizer::forward(
 	// Transfer the data from GPU to CPU
 	cudaMemcpy(means2D_cpu, geomState.means2D, numGaussians * sizeof(glm::vec2), cudaMemcpyDeviceToHost);
 	cudaMemcpy(cov3D_cpu, geomState.cov3D, numGaussians * 6 * sizeof(float), cudaMemcpyDeviceToHost);
+
+	SaveGeometryStateToFile(geomState, "path_to_your_output_file.txt");
 
 	// // Print the data
 	// for (int i = 0; i < numGaussians; ++i) {
