@@ -348,7 +348,7 @@ int CudaRasterizer::Rasterizer::forward(
 	std::ofstream file("/content/geometry_data.txt");
 	if (!file.is_open()) {
 		std::cerr << "Error opening file for writing." << std::endl;
-		return; // Or handle the error as needed
+		
 	}
 
 	// Writing other geometry state parameters
