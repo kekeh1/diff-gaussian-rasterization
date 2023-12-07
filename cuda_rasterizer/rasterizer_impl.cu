@@ -203,7 +203,7 @@ CudaRasterizer::BinningState CudaRasterizer::BinningState::fromChunk(char*& chun
 	return binning;
 }
 // Example function to save GeometryState to a text file
-void saveGeometryStateToFile(const GeometryState& geomState, int P, const std::string& filename) {
+void saveGeometryStateToFile(GeometryState geomState, int P, const std::string& filename) {
     // Open a file for writing
     std::ofstream file(filename);
     if (!file.is_open()) {
