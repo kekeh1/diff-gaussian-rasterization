@@ -344,6 +344,12 @@ int CudaRasterizer::Rasterizer::forward(
 	int* internal_radii_cpu = new int[numGaussians];
 	glm::vec4* conic_opacity_cpu = new glm::vec4[numGaussians];
 	float* rgb_cpu = new float[numGaussians * 3]; // 3 values for RGB
+	uint32_t* point_offsets_cpu = new uint32_t[numGaussians];
+	uint32_t* tiles_touched_cpu = new uint32_t[numGaussians];
+
+	// Transfer the data from GPU to CPU
+	cudaMemcpy(point_offsets_cpu, geomState.point_offsets, numGaussians * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(tiles_touched_cpu, geomState.tiles_touched, numGaussians * sizeof(uint32_t), cudaMemcpyDeviceToHost);
 
 	// Transfer the data from GPU to CPU
 	cudaMemcpy(means2D_cpu, geomState.means2D, numGaussians * sizeof(glm::vec2), cudaMemcpyDeviceToHost);
@@ -363,12 +369,15 @@ int CudaRasterizer::Rasterizer::forward(
 
 	// Writing all geometry state parameters to the file
 	for (int i = 0; i < numGaussians; ++i) {
-		file << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
+
+		file << "Gaussian " << i << std::endl;
+		file << "2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
 		file << "Covariance: [";
 		for (int j = 0; j < 6; ++j) {
-			file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
+    		file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "");
 		}
-		file << std::endl;
+		file << "]" << std::endl;
+
 
 		file << "Depth: " << depths_cpu[i] << std::endl;
 		file << "Clamped: " << (clamped_cpu[i] ? "true" : "false") << std::endl;
@@ -380,6 +389,12 @@ int CudaRasterizer::Rasterizer::forward(
 		file << "RGB: (" << rgb_cpu[i * 3] << ", "
 			<< rgb_cpu[i * 3 + 1] << ", "
 			<< rgb_cpu[i * 3 + 2] << ")" << std::endl;
+		// Write point offsets
+    	file << "Point Offset: " << point_offsets_cpu[i] << std::endl;
+
+    	// Write tiles touched
+    	file << "Tiles Touched: " << tiles_touched_cpu[i] << std::endl;
+
 
 		file << "---------------------" << std::endl;
 	}
@@ -395,6 +410,8 @@ int CudaRasterizer::Rasterizer::forward(
 	delete[] internal_radii_cpu;
 	delete[] conic_opacity_cpu;
 	delete[] rgb_cpu;
+	delete[] point_offsets_cpu;
+	delete[] tiles_touched_cpu;
 
 
 	CHECK_CUDA(FORWARD::render(
