@@ -332,8 +332,19 @@ int CudaRasterizer::Rasterizer::forward(
 
 	// Let each tile blend its range of Gaussians independently in parallel
 	const float* feature_ptr = colors_precomp != nullptr ? colors_precomp : geomState.rgb;
-
+	
+	
+	
 	int numGaussians = P;
+
+	// Allocate CPU memory to store the Gaussians' 2D means and covariances
+	glm::vec2* means2D_cpu = new glm::vec2[numGaussians];
+	float* cov3D_cpu = new float[numGaussians * 6]; // 6 values for each symmetric 3x3 covariance matrix
+
+	// Transfer the data from GPU to CPU
+	cudaMemcpy(means2D_cpu, geomState.means2D, numGaussians * sizeof(glm::vec2), cudaMemcpyDeviceToHost);
+	cudaMemcpy(cov3D_cpu, geomState.cov3D, numGaussians * 6 * sizeof(float), cudaMemcpyDeviceToHost);
+
 	std::ofstream file("/content/geometry_data.txt");
 	if (!file.is_open()) {
 		std::cerr << "Error opening file for writing." << std::endl;
@@ -393,6 +404,35 @@ int CudaRasterizer::Rasterizer::forward(
 		imgState.n_contrib,
 		background,
 		out_color), debug)
+
+	// // Determine the number of Gaussians (assuming you have this information)
+	// int numGaussians = P; // P is the number of Gaussians
+
+	// // Allocate CPU memory to store the Gaussians' 2D means and covariances
+	// glm::vec2* means2D_cpu = new glm::vec2[numGaussians];
+	// float* cov3D_cpu = new float[numGaussians * 6]; // 6 values for each symmetric 3x3 covariance matrix
+
+	// // Transfer the data from GPU to CPU
+	// cudaMemcpy(means2D_cpu, geomState.means2D, numGaussians * sizeof(glm::vec2), cudaMemcpyDeviceToHost);
+	// cudaMemcpy(cov3D_cpu, geomState.cov3D, numGaussians * 6 * sizeof(float), cudaMemcpyDeviceToHost);
+
+	// // Write the data to the file
+	// for (int i = 0; i < numGaussians; ++i) {
+	// 	file << "Gaussian " << i << " - 2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
+	// 	file << "Covariance: [";
+	// 	for (int j = 0; j < 6; ++j) {
+	// 		file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "]");
+	// 	}
+	// 	file << std::endl;
+	// }
+
+	// // Close the file
+	// file.close();
+
+	// // Free the allocated CPU memory
+	// delete[] means2D_cpu;
+	// delete[] cov3D_cpu;
+
 	
 	// // Print the data
 	// for (int i = 0; i < numGaussians; ++i) {
