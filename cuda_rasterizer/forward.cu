@@ -377,16 +377,7 @@ renderCUDA(
 }
 void saveParametersToFile(
     const dim3& grid, const dim3& block,
-    const uint2* ranges,
-    const uint32_t* point_list,
     int W, int H,
-    const float2* means2D,
-    const float* colors,
-    const float4* conic_opacity,
-    float* final_T,
-    uint32_t* n_contrib,
-    const float* bg_color,
-    float* out_color,
     const std::string& filename)
 {
     std::ofstream file;
@@ -405,17 +396,6 @@ void saveParametersToFile(
     file << "W: " << W << "\n";
     file << "H: " << H << "\n";
 
-    // For pointers, you might want to just save whether they are non-null
-    file << "ranges: " << (ranges != nullptr ? "Non-null" : "Null") << "\n";
-    file << "point_list: " << (point_list != nullptr ? "Non-null" : "Null") << "\n";
-    file << "means2D: " << (means2D != nullptr ? "Non-null" : "Null") << "\n";
-    file << "colors: " << (colors != nullptr ? "Non-null" : "Null") << "\n";
-    file << "conic_opacity: " << (conic_opacity != nullptr ? "Non-null" : "Null") << "\n";
-    file << "final_T: " << (final_T != nullptr ? "Non-null" : "Null") << "\n";
-    file << "n_contrib: " << (n_contrib != nullptr ? "Non-null" : "Null") << "\n";
-    file << "bg_color: " << (bg_color != nullptr ? "Non-null" : "Null") << "\n";
-    file << "out_color: " << (out_color != nullptr ? "Non-null" : "Null") << "\n";
-
     file.close();
 }
 
@@ -432,7 +412,7 @@ void FORWARD::render(
 	const float* bg_color,
 	float* out_color)
 {
-	
+	saveParametersToFile(grid, block, W, H, "/content/parameters.txt")
 
 	renderCUDA<NUM_CHANNELS> << <grid, block >> > (
 		ranges,
