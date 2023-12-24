@@ -330,8 +330,46 @@ int CudaRasterizer::Rasterizer::forward(
 			imgState.ranges,height,width);
 	CHECK_CUDA(, debug)
 
+  
+  
+
 	// Let each tile blend its range of Gaussians independently in parallel
 	const float* feature_ptr = colors_precomp != nullptr ? colors_precomp : geomState.rgb;
+
+  // // Allocate memory for output on device
+  // int* d_output;
+  // size_t output_size = num_rendered * 2 * sizeof(int); // Each entry has 2 ints (tile ID and Gaussian ID)
+  // cudaMalloc(&d_output, output_size);
+
+  // // Define kernel execution configuration
+  // dim3 blockSize(256); // You can adjust this based on your GPU's capabilities
+  // dim3 gridSize((num_rendered + blockSize.x - 1) / blockSize.x);
+
+  // // Launch the kernel
+  // extractTileGaussianIDs<<<gridSize, blockSize>>>(binningState.point_list_keys, binningState.point_list, num_rendered, d_output);
+
+  // // Copy the results back to the host
+  // int* h_output = new int[num_rendered * 2];
+  // cudaMemcpy(h_output, d_output, output_size, cudaMemcpyDeviceToHost);
+
+  // // Open a file for writing
+  // std::ofstream outputFile("/content/output.txt");
+
+  // // Write the results to the file
+  // for (int i = 0; i < num_rendered; ++i) {
+  //     int tile_id = h_output[i * 2];
+  //     int gaussian_id = h_output[i * 2 + 1];
+  //     outputFile << "Tile ID: " << tile_id << ", Gaussian ID: " << gaussian_id << std::endl;
+  // }
+
+  // // Close the file
+  // outputFile.close();
+
+  // // Free memory
+  // cudaFree(d_output);
+  // delete[] h_output;
+  
+
 	
 	
 	// int numGaussians = P;
@@ -374,7 +412,7 @@ int CudaRasterizer::Rasterizer::forward(
 	// 	file << "2D Mean: (" << means2D_cpu[i].x << ", " << means2D_cpu[i].y << ")\n";
 	// 	file << "Covariance: [";
 	// 	for (int j = 0; j < 6; ++j) {
-    // 		file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "");
+  //   		file << cov3D_cpu[i * 6 + j] << (j < 5 ? ", " : "");
 	// 	}
 	// 	file << "]" << std::endl;
 
@@ -383,17 +421,17 @@ int CudaRasterizer::Rasterizer::forward(
 	// 	file << "Clamped: " << (clamped_cpu[i] ? "true" : "false") << std::endl;
 	// 	file << "Internal Radii: " << internal_radii_cpu[i] << std::endl;
 	// 	 file << "Conic Opacity: (" << conic_opacity_cpu[i].x << ", "
-    //      << conic_opacity_cpu[i].y << ", "
-    //      << conic_opacity_cpu[i].z << ", "
-    //      << conic_opacity_cpu[i].w << ")" << std::endl;
+  //        << conic_opacity_cpu[i].y << ", "
+  //        << conic_opacity_cpu[i].z << ", "
+  //        << conic_opacity_cpu[i].w << ")" << std::endl;
 	// 	file << "RGB: (" << rgb_cpu[i * 3] << ", "
 	// 		<< rgb_cpu[i * 3 + 1] << ", "
 	// 		<< rgb_cpu[i * 3 + 2] << ")" << std::endl;
 	// 	// Write point offsets
-    // 	file << "Point Offset: " << point_offsets_cpu[i] << std::endl;
+  //   	file << "Point Offset: " << point_offsets_cpu[i] << std::endl;
 
-    // 	// Write tiles touched
-    // 	file << "Tiles Touched: " << tiles_touched_cpu[i] << std::endl;
+  //   	// Write tiles touched
+  //   	file << "Tiles Touched: " << tiles_touched_cpu[i] << std::endl;
 
 
 	// 	file << "---------------------" << std::endl;
